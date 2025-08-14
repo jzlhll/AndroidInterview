@@ -1,7 +1,3 @@
-Android Framework源码开发揭秘 
-
-## 系统启动流程分析
-
 ### 一、Android启动概览
 
 drivers->HAL->ART->java framework->App
@@ -118,23 +114,7 @@ java层 Camera开启，会跑到JNI，跑到framework的camera c库，此时都�
 
 
 
-### 三、Handler详解
 
-handle简单地讲，就是跨线程通信的一种方式；你想在某个线程收消息，其实就通过HandlerThread，起了一个死循环的Loop MessageQueue。没消息的时候，它就等待在那（并不阻塞线程的等待，eventfd或epoll机制）。
-
-等有消息了，就唤醒一下，执行下你的消息内容Runnable或者handleManager。
-
-异步消息：消息屏障：其实是为了保证系统的那些动作优先执行，app都不允许设置。
-
-插队，其实就是利用链表的特性，将消息提前挂到前面去，定时唤醒。
-
-draw,requestLayout, invalidate都是异步消息。为了就是不卡界面。
-
-Looper通过sThreadLocal来存储的。确保了线程唯一。
-
-
-
-IdleHandler 空闲的时候，执行任务的时机，根据业务场景使用，不太可控。
 
 
 
@@ -246,7 +226,7 @@ SystemServer里面会启动PKMS。主要负责：
 
 
 
-### 七、andorid图形系统
+### 七、android图形系统
 
 #### 概述
 
@@ -317,7 +297,7 @@ WMS里面addView，就是校验和分组token，type，创建WindowState，对wi
 同时，ViewRootImpl里面setView，requestLayout，scheduleTraversals() 
 ![请添加图片描述](https://i-blog.csdnimg.cn/direct/ac5f757147894a1ba0619693edd612e8.png)
 
-#### 2. View的绘制流程
+#### 3. View的绘制流程
 
 performTraversal()
 
@@ -349,7 +329,7 @@ performTraversal()
 
 
 
-#### 3. activity，window，view的关系
+#### 4. activity，window，view的关系
 
 activity主要是管理生命周期
 
@@ -361,7 +341,7 @@ window与view是处理管理
 
 
 
-#### 4. Surface图形系统
+#### 5. Surface图形系统
 
 其中每一层之间的数据传递是使用Buffer（缓冲区）作为载体, 上层和surfaceFlinger间的buffer为图形缓冲区，framework与显示屏间的buffer是硬件帧缓冲区。
 
@@ -436,10 +416,6 @@ app进程最终是createSurface，到了SurfaceFlinger就是创建layer。
 app通过Surface（GraphicBufferProducer，dequeueBuffer）向SurfaceFlinger申请buffer。
 
 ![image-20240815114118228](C:\Users\allan.jiang\AppData\Roaming\Typora\typora-user-images\image-20240815114118228.png)
-
-
-
-
 
 ![image-20240815104211941](C:\Users\allan.jiang\AppData\Roaming\Typora\typora-user-images\image-20240815104211941.png)
 
