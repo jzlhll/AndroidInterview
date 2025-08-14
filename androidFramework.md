@@ -248,6 +248,34 @@ SystemServer里面会启动PKMS。主要负责：
 
 ### 七、andorid图形系统
 
+#### 概述
+
+
+
+<img src="/Users/allan/Documents/ashare/Android知识体系与面试/我的总几个/pictures/图形系统1.png" alt="图形系统1" style="zoom:33%;" />
+
+https://www.jianshu.com/p/fdc12d049524 
+
+https://source.android.google.cn/docs/core/graphics?hl=zh-cn
+
+软件绘制：cpu渲染： measure->layout->draw ==>skia => 栅格化 => screen
+
+软件绘制：gpu渲染： measure->layout->draw ==>openGL ES => GPU-栅格化 => screen
+
+
+
+Activity：一个傀儡，属于是windowManager在app进程的代理，帮忙管理将View贴到decorView附加上window上。
+
+window：是一块矩形区域；是windowManager操作的对象；含有Surface。
+
+windowManger/WMS: 管理这些window的显示；同时，与SurfaceFlinger打交道申请window的surface，并把SurfaceControl传递给SurfaceFlinger做合成。
+
+View/ViewGroup: onMeasure/onLayout/onDraw，通过Canvas来绘制文本，图形，图片等内容。
+
+Surface：图形缓冲区队列BufferQueue的生产端；代表一个可绘制的原始缓冲区层；通过Canvas/EGL/Vulkan等软硬件方式，绘制到了缓冲区；绘制完成以后，dequeueBuff到BuffQueue中；SurfaceFlinger根据vsync信号，将所有Surface的缓冲区合成，给到显示驱动显示。
+
+
+
 #### 1. window加载视图的过程
 
 Activity(PhoneWindow (DecorView(titleBar, contentView)) )
@@ -262,7 +290,7 @@ token维护Activity和window的对应关系
 
 
 
-activity的启动过程：
+#### 2. activity的启动过程
 
 App1进程startActivity -> AMS startActivity -> AMS socket zyogte孵化app2进程 
 
@@ -294,9 +322,7 @@ WMS里面addView，就是校验和分组token，type，创建WindowState，对wi
 performTraversal()
 
 	performMeasue()
-	
 	performLayout()
-	
 	performDraw()
 
 
