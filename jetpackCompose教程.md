@@ -43,9 +43,22 @@ compose框架：整个行业都转向声明式UI模型。现在是，在概念�
 fun SimpleTestUi(name: String) {
     Text("Simple Ui $name!")
 }
+
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+    setContent {
+        SimpleTestUi("Hello compose!")
+    }
+}
 ```
 
+<img src="/Users/allan/Documents/ashare/Android知识体系与面试/我的总几个/pictures/jetpack-simpleText.png" alt="jetpack-simpleText" style="zoom:50%;" />
+
+(暂时不要管为什么顶在statusBar上面。android15的edgeToEdge默认沉浸式。后面学到如何padding再讲解。1️⃣)
+
 * `@Composable`注解。交给编译器转变为界面。
+
 * 可以入参。
 * `Text()`是一个composable函数，还可以结合其他composable函数来生成UI层次结构。
 * 没有返回值。因为我们期待的屏幕的状态，而不是一个组件。
@@ -54,12 +67,47 @@ fun SimpleTestUi(name: String) {
 
 
 ```kotlin
+
 @Composable
 fun ClickCounter(clicks: Int, onClick: () -> Unit) {
     Button(onClick = onClick) {
         Text("I've been clicked $clicks times")
     }
-} //todo 如何单独去更新这一个按钮呢？
+}
+
+//一个真实可以用的为如下代码。
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+    setContent {
+        AndroidCompontsTheme {
+            Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                MainUi(
+                    name = "Android",
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MainUi(name: String, modifier: Modifier = Modifier) {
+    // 使用remember和mutableStateOf创建Compose状态变量
+    var clicks by remember { mutableIntStateOf(0) }
+
+    Column(
+        modifier = modifier.background(
+            color = Color.Transparent,
+            shape = RoundedCornerShape(Dp(4f))
+        ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        ClickCounter(clicks) {
+            clicks++
+        }
+    }
+}
 ```
 
 在命令式界面模型中，如需更改某个 widget，您可以在该 widget 上调用 setter 以更改其内部状态。在 Compose 中，您可以使用新数据再次调用可组合函数。
@@ -68,28 +116,34 @@ fun ClickCounter(clicks: Int, onClick: () -> Unit) {
 
 
 
-* 副作用(side-effect)
+* **Side-Effect**（翻译：**附带效应** 或者 **副作用**） 避免在compose中进行如下操作：
 
-	共享对象的属性；更新ViewModel中的可观察对象；更新SharedPreferences
+	* 写入共享对象的属性；
+	
+	* 更新ViewModel中的可观察对象；
+	
+	* 更新SharedPreferences。
 
-为了尽可能高效的刷新UI，避免刷新不需要更新的其他组件部分。例如如下有sharedPref的变更显示，请在后台协程中执行，并将值结果作为参数传递给可组合函数。
-
-```kotlin
-@Composable
-fun SharedPrefsToggle(
-    text: String,
-    value: Boolean,
-    onValueChanged: (Boolean) -> Unit
-) {
-    Row {
-        Text(text)
-        Checkbox(checked = value, onCheckedChange = onValueChanged)
-    }
-} //todo 怎么组合实现。
-```
+为了尽可能高效的刷新UI，避免刷新不需要更新的其他组件部分。
 
 所有可组合函数或 lambda 表达式的执行都应该无副作用。当你需要执行副作用操作时，请从回调函数中触发它。
 
 当Compose认为可组合项的参数可能已发生变化时，重组就会开始。重组是*乐观的*，这意味着Compose期望在参数再次变化之前完成重组。如果某个参数在重组完成前*确实*发生了变化，Compose可能会取消当前重组，并使用新参数重新开始。当重组被取消时，Compose 会丢弃此次重组生成的 UI 树。如果您有任何依赖于正在显示的 UI 的副作用，即使重组被取消，这些副作用也会被应用。这可能会导致应用状态不一致。为了应对乐观重组，确保所有可组合函数和lambda表达式都是幂等的且无副作用。
 
 如果您的可组合函数需要数据，它应该为这些数据定义参数。然后，您可以将耗时的工作转移到组合之外的另一个线程，并使用`mutableStateOf`或`LiveData`将数据传递给Compose。
+
+- 重组会跳过尽可能多的可组合函数和 lambda。
+- 重组是乐观的操作，可能会被取消。
+- 可组合函数可能会像动画的每一帧一样非常频繁地运行。
+- 可组合函数可以并行执行。
+- 可组合函数可以按任何顺序执行。
+
+
+
+> TodoList:
+>
+> Side-Effect （副作用）
+>
+> 数据采用State (remember + mutableStateOf/...)方式承载。
+>
+> Why？
