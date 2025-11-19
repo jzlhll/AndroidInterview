@@ -53,7 +53,7 @@ override fun onCreate(savedInstanceState: Bundle?) {
 }
 ```
 
-<img src="/Users/allan/Documents/ashare/Android知识体系与面试/我的总几个/pictures/jetpack-simpleText.png" alt="jetpack-simpleText" style="zoom:50%;" />
+<img src="./pictures/jetpack-simpleText.png" alt="jetpack-simpleText" style="zoom:50%;" />
 
 (暂时不要管为什么顶在statusBar上面。android15的edgeToEdge默认沉浸式。后面学到如何padding再讲解。1️⃣)
 
