@@ -1,7 +1,5 @@
 https://developer.android.google.cn/guide/navigation?hl=zh-cn
 
-https://blog.csdn.net/vitaviva/article/details/152165180?spm=1001.2014.3001.5506
-
 # Android 传统 Navigation 组件使用指南
 
 ## 官方文档学习
@@ -10,47 +8,51 @@ https://blog.csdn.net/vitaviva/article/details/152165180?spm=1001.2014.3001.5506
 
 https://developer.android.google.cn/guide/navigation?hl=zh-cn
 
-在不同 fragment 之间切换和交互的组件。有 navigation 库和 safe args  gradle 插件辅助。可以从简单的按钮点击到更复杂的模式（应用栏和抽屉导航栏）。
+在不同 fragment 之间切换和交互的组件。可以从简单的按钮点击到更复杂的模式（应用栏和抽屉导航栏）。
 
-* **NavHostFragment 宿主**。包含当前导航目的地的界面元素。其实在这个上面。单 Activity 设计。
-* **NavGraph 导航图**。数据结构。定义所有目的地和连接。
-* **NavController 控制器**。管理目的地之间的协调，提供方法，导航，处理 deep links，back stacks等。
-* **NavDestination 目的地，图中的节点**。就是内容。
-* 路线。唯一标识目的地及其所需的任何数据。可序列化的数据类型。
+> 官方的文档提到了，可以将Dialog和抽屉方式，和底部选项卡方式都加入到navigation中。
+>
+> 但是文档相对缺乏，使用者寥寥，不建议初学者把他们加入到navigation中，你当做进阶去学习。让我们从简单的纯粹的学起。
+
+包括如下概念和类：
+
+* **NavHostFragment 宿主**。单 Activity 设计思想。宿主指的是包含当前导航目的地的界面元素，fragment就是显示在它上面的内容。
+* **NavGraph 导航图**。一种数据结构。定义所有目的地和连接。
+* **NavController 控制器**。管理目的地之间的协调，提供方法，导航，处理 deep links，back stacks返回栈等。
+* **NavDestination 目的地，图中的节点**。就是内容界面。
+* **Route路线**。唯一标识目的地及其所需的任何数据，可序列化的数据类型。
 
 优势和功能：
 
 - **动画和过渡**：为动画和过渡提供标准化资源。
-- **深层链接**：实现并处理可将用户直接转到目的地的深层链接。
+- **deep link**：实现并处理可将用户直接转到目的地的深层链接。
 - **界面模式**：只需极少的额外工作即可支持抽屉式导航栏和底部导航等模式。
 - **类型安全**：支持在目的地之间传递[类型安全](https://developer.android.google.cn/guide/navigation/design/type-safety?hl=zh-cn)的数据。
 - **ViewModel 支持**：允许将 `ViewModel` 的作用域限定为导航图，以便在导航图的目的地之间共享与界面相关的数据。
 - **fragment 事务**：全面支持和处理 fragment 事务。
 - **返回和向上**：默认情况下，系统会正确处理返回和向上操作。
 
-todo 预测性返回导航功能 如何支持？
-
-====================
+>  提到了预测性返回导航功能 ，todo 如何支持？
 
 ### 2. Navigation Contoller
 
-因为还没有学习到如何创建他的 xml，以你这里介绍的就是一些函数用来调度NavGraph 的。
+因为还没有学习到如何创建他的 xml，所以这里介绍的是一些函数用来调度NavGraph 的。
 
-则可以根据上下文使用下列方法之一来检索 NavController：
+可以根据当前所在的类中，使用下列方法之一来找到**NavController**：
 
 ```kotlin
+//常规使用
 Framgent.findNavController()
 View.findNavController()
 Activity.findNavController(viewId:Int)
-```
 
-先获取到 NavHostFragment，然后得到 navController：
-
-```kotlin
+//其实上面的方法，他们内部实现中去找了navHostFragment，进而拿到的navController。因此你的初始化方式是使用 FragmentContainerView 创建 NavHostFragment 时或使用 FragmentTransaction 手动向 activity 添加 NavHostFragment 时，是找不到的，应该采用下面的方案：
 val navHostFragment =
     supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
 val navController = navHostFragment.navController
 ```
+
+
 
 ### 3. 设计NavGraph
 
@@ -66,29 +68,23 @@ NavGraph 导航图。是一种数据结构。定义所有目的地和连接。
 | 对话框   | 显示叠加界面组件。此界面与导航宿主的位置或大小无关。之前的目的地会显示在该目的地下方。 | 提醒、选择、表单。                                           |
 | activity | 表示应用中的独特界面或功能。                                 | 充当导航图的退出点，启动与 Navigation 组件分开管理的新activity。在 Modern Android Development 中，应用由 1 个 activity 组成。因此，当与第三方 activity 互动或作为[迁移过程](https://developer.android.google.cn/guide/navigation/migrate?hl=zh-cn)的一部分时，最适合使用 activity 目的地。 |
 
-使用 NavHostFragment 作为宿主。可以写kotlin DSL，也可以写 xml，还可以直接使用 android studio 编辑器。
+使用 **NavHostFragment** 作为宿主。可以写kotlin DSL，也可以写 xml，还可以直接使用 android studio 编辑器。
 
-* XML 方式，相对简单和便于传统的 Xml View 思维下的理解，这里不做学习，原因后面会讲。
+* 1. **XML方式**：相对简单和便于传统的 Xml View 思维下的理解，这里不做学习，原因后面会讲。
 
-* 编辑器方式，不推荐。不好把控。
+* 2. **编辑器方式**：是xml方式的编辑模式，不推荐，不好直接理解代码。
 
-* kotlin DSL，麻烦，需要自行编写 fragment{}, activity{}等createGraph 来实现， navigation 泛型跳转等。偏向 Compose （但不是 Compose）的写法。我们重点学习。
+* 3. **kotlin DSL方式**：麻烦，需要自行编写 fragment{}, activity{}等createGraph 来实现， navigation 泛型跳转等。但是十分接近 Compose写法。
 
   优点：
 
   类似 compose方便以后学习 compose 迁移；
 
-  相对简洁和时尚；
+  相对简洁和更现代；
 
   可动态从服务器下发配置，动态构建导航图。
 
-todo。Global actions？
-
-todo。嵌套图？
-
-
-
-接下来就学习 DSL 方式。
+接下来，原文章是的讲compose，讲xml的不适用的部分就略掉了。只学习 DSL 方式。
 
 #### 3.1 引入
 
@@ -97,18 +93,19 @@ https://developer.android.google.cn/guide/navigation/design/kotlin-dsl?hl=zh-cn
 ```groovy
 dependencies {
     def nav_version = "2.9.6"
-
     api "androidx.navigation:navigation-fragment-ktx:$nav_version"
+  //无需其他了，不需要xml方式就只这一个就够了。
 }
 ```
 
 #### 3.2 想好界面
 
-首先，想好你的所有目的地，（约等于以前你有多少 Activity，界面）,以及跳转的参数和操作。比如示例中，home+detail2 个界面：
+首先，想好你的所有目的地，（约等于以前你有多少个Activity的界面），以及相应的跳入参数和操作。
+
+比如示例中，有个程序有2个界面，**home**和**detail**：
 
 ```
-2 个界面：
-Destination //home 界面
+Destination //home界面
 ID: home
 Fragment: HomeViewPagerFragment
 
@@ -124,9 +121,9 @@ ID: to_plant_detail
 Destinationld: plant_detail
 ```
 
-#### 3.3 引入 activity 的 host
+#### 3.3 在 activity 中引入 NavHostFragment
 
-第一步在主 Activity 上，只放了一个 **FragmentContainerView**，注意不要有 navGraph 标签。
+第一步在主 Activity 上，只放了一个 **FragmentContainerView**，注意不要有 app:navGraph 标签。
 
 ```xml
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -146,40 +143,39 @@ Destinationld: plant_detail
 
 在 XML 中，action用于将 destination ID 与一个或多个参数绑定在一起。不过，使用Navigation DSL 时，route（路由）可以包含实参作。这意味着，在使用 DSL 时，不存在 action的概念。
 
-todo action 又是什么？与 Globals action区别？
+todo 多 Activity 之间是否还需要再定义？看下来是嵌套navigation的意思。
 
-todo route 是什么？
 
-todo 参数传递？
 
-todo 多 Activity 之间是否还需要再定义？
-
-#### 3.4 创建路由 route
+#### 3.4 构建 NavGraph和Route
 
 在 xml 构建中，编译过程生成了静态 id。现在使用DSL是运行时，所以使用**可序列化类型**来表示每一条路由。
 
-```kotlin
-@Serializable data object Home
-@Serializable data class PlantDetail(val id: String)
-```
-
-#### 3.5 构建 graph
-
-##### 1) fragment destinations
+##### 1) 注册fragment界面(destination)
 
 ```kotlin
-val navController = findNavController(R.id.nav_host_fragment)
-navController.graph = navController.createGraph(
+//0. 定义Route，可序列化类型
+@Serializable data object Home //代表Home界面
+@Serializable data class PlantDetail(val id: String) //代表Detail详情页带参数
+
+val navController = findNavController(R.id.nav_host_fragment) //1. 找到navController
+navController.graph = navController.createGraph( //2. 创建NavGraph
     startDestination = Home
 ) {
+  	//2.1 创建了一个Home界面
     fragment<HomeFragment, Home> {
         label = resources.getString(R.string.home_title)
     }
+  	//2.2 创建了一个Detail二级页面
     fragment<PlantDetailFragment, PlantDetail> {
         label = resources.getString(R.string.plant_detail_title)
     }
 }
+```
 
+其中，`fragment{}`是构建函数：
+
+```kotlin
 fragment<MyFragment, MyRoute> {
    label = getString(R.string.fragment_title)
    // custom argument types, deepLinks
@@ -190,9 +186,9 @@ fragment<MyFragment, MyRoute> {
 
 泛型：
 
-​	第一个参数为 Fragment 类；
+​	第一个为 Fragment 类；
 
-​	第二个参数是路由，必须是 Any 继承的可序列化的类型（包含了跳转需要的参数和类型）
+​	第二个是Route，必须是 Any 继承的可序列化的类型（包含了跳转需要的参数）
 
 lambda：
 
@@ -200,11 +196,11 @@ lambda：
 
 
 
-todo 如何自定义参数？
+todo 除了泛型以外custom argument types指的是什么？
 
-todo deeplink？
 
-##### 2) dialog destinations
+
+##### 2) dialog destinations todo 先跳过学习
 
 指的应用导航图中以对话框窗口的形式叠加在应用界面元素和内容之上。**需要处理 NavController 的返回栈。**
 
@@ -241,7 +237,7 @@ todo 如何处理返回栈？还是说，处理返回栈的意思是已经交给
 
 泛型：
 
-​	只有唯一的参数是路由，必须是 Any 继承的可序列化的类型（包含了跳转需要的参数和类型）
+​	只有唯一的，就是路由，必须是 Any 继承的可序列化的类型（包含了跳转需要的参数和类型）
 
 lambda：
 
@@ -258,38 +254,22 @@ activity<MyRoute> {
 }
 ```
 
-通过这种方式来实现，将无需再找到 Activity 类名来显示启动。因为可以自定义传参，还需要 start activity  bundle 那些干什么呢？
+通过这种方式来实现，我们将无需再找到 Activity 类名来显示启动。而且还能够自定义传参，不需要start activity+ bundle的方式了。
 
-##### 4) 导航跳转
+##### 4) 定义泛型参数
 
-使用 `navigate() `函数跳转:
+前面已经写了是通过构建函数的泛型来定义一个目的地的参数类型：
 
 ```kotlin
-private fun navigateToPlant(plantId: String) {
-   findNavController().navigate(route = PlantDetail(id = plantId))
+fragment<MyFragment, MyRoute> //作为泛型传入
+activity<MyRoute> { //作为泛型传入
+   activityClass = MyActivity::class
 }
 ```
 
-进入后可以通过如下代码获取参数：
-
-```kotlin
-val plantDetailRoute = findNavController().getBackStackEntry<PlantDetail>().toRoute<PlantDetail>()
-val plantId = plantDetailRoute.id
-
-//viewModel 的方式
-val plantDetailRoute = savedStateHandle.toRoute<PlantDetail>()
-val plantId = plantDetailRoute.id
-```
-
-todo viewModel 有特殊点？
-
-##### 5) 参数
-
-定义**路由**类。与我们平时写的 api data bean 类类似。
-
 * 常规数据类型
 
-`String, int, List<String>...`这些。
+支持`String, int, List<String>...`这些。
 
 ```kotlin
 @Serializable
@@ -298,8 +278,6 @@ data class MyRoute(
   val myList: List<Int>,
   val optionalArg: String? = null
 )
-
-fragment<MyFragment, MyRoute>
 ```
 
 * 自定义类型
@@ -361,15 +339,42 @@ val searchRoute = navController().getBackStackEntry<SearchRoute>().toRoute<Searc
 val params = searchRoute.parameters
 ```
 
-#### 3.6 嵌套 NavGraph
+> 复杂类型，麻烦的很咯。我建议还是自己搞gson，我们传入String，反解析就好了，效率差不多，更简单。
+
+
+
+##### 5) 跳转和获取参数
+
+使用 `navigate() `函数跳转:
+
+```kotlin
+private fun navigateToPlant(plantId: String) {
+   findNavController().navigate(route = PlantDetail(id = plantId))
+}
+```
+
+进入后，可以在目标Fragment中，可以通过如下代码获取参数：
+
+```kotlin
+val plantDetailRoute = findNavController().getBackStackEntry<PlantDetail>().toRoute<PlantDetail>()
+val plantId = plantDetailRoute.id
+
+//viewModel中的方式
+val plantDetailRoute = savedStateHandle.toRoute<PlantDetail>()
+val plantId = plantDetailRoute.id
+```
+
+todo，back stack怎么管理？
+
+#### 3.5 嵌套 NavGraph
 
 思考一个app，用户首次启动有 guide_screen，register 界面。主界面是 home，然后有二级界面 detail，settings 等。
 
-后续用户直接进入 home。
+后续注册使用，用户应该直接进入 home。
 
-最佳实践是将 home 界面设置为顶级导航图的起始 Destination。并将guide_screen，register 移到嵌套图中。home 界面启动后检查是否有注册用户，没有注册就跳转到注册界面。
+最佳实践是将 home 界面设置为顶级导航图的起始 Destination。
 
-
+并将guide_screen，register 移到嵌套图中。home 界面启动后检查是否有注册用户，没有注册就跳转到注册界面。
 
 ```kotlin
 @Serializable data object HomeGraph
@@ -390,17 +395,35 @@ lambda：与其他一致。
 
 
 
+todo：navigation函数应该放在哪里执行？
+
 todo：如何定义一张新的 Graph呢？
 
-#### 3.7 deeplink todo
+todo：home 界面启动后检查是否有注册用户，没有注册就跳转到注册界面。听起来像是需要在home界面的onCreate函数里面，检查是否登录了，没有的话，立刻navigate到注册界面，但是是否要销毁呢，back stack如何管理？
 
+todo：条件导航？
+
+
+
+#### 3.6 deeplink todo
+
+首先要明确，deeplink指的是：**能从别的应用跳过来，打开某个界面，带或者不带参数的方式**。
+
+而对于那种不公开给外部的，我们就只需要做成fragment，通过第二个泛型传参即可。
+
+对于有外部需要的，我们需要定义成Activity。在android标准中，我们已经有action intent-filter scheme的方式。
+
+如果是单一架构的Activity，可以定义多个intent-filter + scheme来实现多deeplink的传入。
+
+> 如果是 xml 方式使用的时候，有显式和隐式两种方式。
+>
 > 显式深层链接是深层链接的一个实例，该实例使用 PendingIntent 将用户定向到应用内的特定位置。例如，您可以在通知或应用 widget 中显示显式深层链接。
 >
 > 当用户通过显式深层链接打开您的应用时，任务返回堆栈会被清除，并被替换为相应的深层链接目的地。当嵌套图表时，每个嵌套级别的起始目的地（即层次结构中每个 <navigation> 元素的起始目的地）也会添加到相应堆栈中。也就是说，当用户从深层链接目的地按下返回按钮时，他们会返回到相应的导航堆栈，就像从入口点进入您的应用一样。
 
-如果是 xml 方式使用的时候，有显式和隐式两种方式。它是通过给 navigation.xml 和 Android manifest Activity 标签修改内容让 navigation 插件编译修改。
+如果是 xml 方式使用的时候，有显式和隐式两种方式。它是通过给 navigation.xml 和 Android manifest Activity 标签修改内容，最终 navigation 插件在编译阶段修改成了传统代码。而我们学习的 DSL。就不利用插件了，也不支持。
 
-而我们学习的 DSL。所以我们需要自行给 Activity 添加传统的Intent方式。
+所以我们需要自行给 Activity 添加传统的Intent方式。
 
 ```xml
 <activity
@@ -440,6 +463,8 @@ val plantId = arguments?.getString("plantId") ?: "unknown"
 ```
 
 然后如何注册？在申明 desitination 的地方追加 deeplink：
+
+todo试一试能不能添加多个deeplink？
 
 ```kotlin
 @Serializable data object Home
@@ -491,11 +516,11 @@ findNavController().navigate("plantDetail/$plantId")
 
 不要使用 Safe Args。不支持 DSL。
 
-todo 需要进一步看一下deeplink 传参到底是如何。
+todo 需要进一步看一下deeplink 传参到底是如何。是否我们可以忽略deeplink章节的学习，继续使用标准android来做。我推测只需要不在注册fragment函数中提到deeplink就不会有这个了。 
 
 
 
-#### 3.8 自定义 Destination todo
+#### 3.7 自定义 Destination todo
 
 ```kotlin
 // The NavigatorProvider is retrieved from the NavController
@@ -509,9 +534,7 @@ https://developer.android.google.cn/guide/navigation/design/add-new?hl=zh-cn
 
 todo 需要配合这里没看懂，似乎是挺进阶的使用方法。navigator，activityNavigator，嵌套的 navigatorProvider 等，addNavigator()等。
 
-#### 3.9 action
 
-仅供 xml 使用，不用学习。
 
 ### 4. 使用 NavGraph
 
