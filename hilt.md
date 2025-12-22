@@ -58,7 +58,7 @@ Square公司，闻名遐迩，开发了okhttp,retrofit,leakcanary等优秀框架
 ```groovy
 plugins {
 		...
-    id 'com.google.dagger.hilt.android' version '2.57' apply false
+    id 'com.google.dagger.hilt.android' version '2.57.1' apply false
 }
 ```
 
@@ -71,24 +71,14 @@ plugins {
 }
 android {
 	//hilt
-  implementation("com.google.dagger:hilt-android:2.57")
-  ksp("com.google.dagger:hilt-android-compiler:2.57")
+  implementation("com.google.dagger:hilt-android:2.57.1")
+  ksp("com.google.dagger:hilt-android-compiler:2.57.1")
 }
 ```
 
-#### 第1步：Application标注
+#### 第1步：Application标注`@HiltAndroidApp`
 
-必须找到自己的application（没有也要创建一个并在AndroidManifest中申明），给他添加上注解`@HiltAndroidApp`。
-
-目的是在编译期间修改你的代码，让注入代码有了初始化的地方。
-
-
-
-**`@HiltAndroidApp` 会触发 Hilt 的代码生成操作，生成的代码包括应用的一个基类，该基类可使用依赖项注入。application 容器是应用的父级容器，这意味着其他容器可以访问它提供的依赖项。**
-
-
-
-全局依赖注入的初始化。
+必须找到自己的application（没有也要创建一个并在AndroidManifest中申明），给他添加一个application并注解`@HiltAndroidApp`。
 
 ```kotlin
 @HiltAndroidApp
@@ -99,9 +89,12 @@ class App : InitApplication() {
 }
 ```
 
+**`@HiltAndroidApp` 会在编译期间修改你的代码，生成的代码包括应用的一个基类，该基类可使用依赖项注入。application 容器是应用的父级容器，这意味着其他容器可以访问它提供的依赖项。**
+
+
 > 见：`实现原理浅析` `@HiltAndroidApp`部分。
 
-#### 第2步：在生命周期类中最简单的使用
+#### 第2步：在生命周期类中使用
 
 ##### 2.1 生命周期类注入无参对象
 
@@ -116,7 +109,7 @@ BroadcastReceiver
 ViewModel（通过使用 @HiltViewModel）
 ```
 
-> 注意没有content provider，因为它的生命周期初始化比Application更快。不符合使用。后面再学习怎么在contentProvider中使用。
+> 注意没有content provider，因为它的生命周期初始化比Application更快。不符合使用。后面再学习怎么在contentProvider中使用。todo。
 
 必须完成如下三步，**任意缺少将会编译不通过，或者运行时报错**。
 
@@ -146,7 +139,7 @@ class EntryHelper @Inject constructor() { //3. 申明注入。
 
 到这里我们实现了在生命周期类中注入了一个无参普通类。
 
-**如果是Fragment，一定要让所有承载它的Activity都加上@AndroidEntryPoint。**
+**如果是Fragment，一定要让所有承载它的Activity都加上`@AndroidEntryPoint`。**
 
 
 
@@ -225,6 +218,12 @@ lateinit var mHelper : EntryHelper
 
 
 
+#### FeatureScoped
+
+
+
+
+
 ### 实现原理浅析
 
 #### @HiltAndroidApp
@@ -279,7 +278,7 @@ public abstract class Hilt_App extends InitApplication implements GeneratedCompo
 
 从这里，我们就可以看出，`HiltAndroidApp`注解的作用是把你的application进行了二次抽象，补充了实现了一个GeneratedComponentManagerHolder。具体细节不展开，其实就是收集了其他Hilt注解生成的代码做为注入的对象。
 
-#### 注入编译结果追踪1
+#### 注入编译结果追踪
 
 在编译路径：app/build/generated/ksp/下。可以找到相关的编译类。
 
