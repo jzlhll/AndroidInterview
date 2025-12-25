@@ -1116,3 +1116,571 @@ fun Application.main() {
 }
 ```
 
+## 九、实践
+
+记录实践中的一些用法。
+
+### GlobalContext
+
+我们通过`get()`/`inject()`直接在生命周期类注入, ViewModel类中可以拿到注入对象。比如:
+
+```kotlin
+class XXFragment : Fragment() {
+    private val globalDiscovery : IDiscovery = get()
+  	...
+}
+```
+
+但是，不是生命周期类，可以通过：
+
+```kotlin
+GlobalContext.get().get<Api>()
+```
+
+还可以通过`继承KoinComponent`实现。
+
+当然，最推荐直接构造函数使用。
+
+
+
+### 继承KoinComponent
+
+```kotlin
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import org.koin.core.component.get
+
+class MyRepository : KoinComponent {
+    // 方式1: 使用 inject 延迟初始化
+    private val apiService: ApiService by inject()
+    
+    // 方式2: 使用 get 直接获取
+    fun doSomething() {
+        val apiService = get<ApiService>()
+        // 使用 apiService
+    }
+}
+```
+
+可以作用于object类，就是要注意持有的东西，生命周期跟随单例：
+
+```kotlin
+object ResourceManager : KoinComponent {
+    // 注意：object 是全局单例，会持有所有注入的依赖
+    private val heavyResource: HeavyResource by inject()
+    
+    fun cleanup() {
+        // 需要手动释放资源
+        heavyResource.release()
+    }
+}
+```
+
+### 自定义scope生命周期
+
+用来实现自定义生命周期
+
+```kotlin
+// 创建自定义 Scope
+class MyScope : Scope()
+
+// 定义需要释放的资源
+class DatabaseConnection : Closeable {
+    override fun close() {
+        println("Database connection closed")
+    }
+}
+
+class NetworkClient : Closeable {
+    override fun close() {
+        println("Network client closed")
+    }
+}
+
+// 模块配置
+val appModule = module {
+    // 在 MyScope 内创建资源
+    scope<MyScope> {
+        scoped { DatabaseConnection() }
+        scoped { NetworkClient() }
+    }
+}
+
+// 在 Activity 中使用
+class MainActivity : AppCompatActivity() {
+    private lateinit var myScope: MyScope
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // 创建 Scope
+        myScope = getKoin().createScope("myActivityScope", MyScope::class)
+        
+        // 获取资源
+        val db = myScope.get<DatabaseConnection>()
+        val network = myScope.get<NetworkClient>()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // 关闭 Scope，自动释放所有 scoped 资源
+        myScope.close()
+    }
+}
+```
+
+### ROOM
+
+做成单例。
+
+```kotlin
+// 1. 定义数据库模块
+val databaseModule = module {
+    // 单例模式注入 AppDatabase
+    single {
+        Room.databaseBuilder(
+            androidApplication(),  // 从 Koin 获取 Application Context
+            AppDatabase::class.java,
+            "app_database.db"
+        )
+        .fallbackToDestructiveMigration()  // 可选：破坏性迁移
+        .build()
+    }
+    
+    // 注入 DAO（也从单例数据库中获取）
+    single { get<AppDatabase>().userDao() }
+    single { get<AppDatabase>().productDao() }
+}
+
+// 2. 启动 Koin
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        
+        startKoin {
+            androidContext(this@MyApp)
+            modules(
+                databaseModule,
+                // 其他模块...
+            )
+        }
+    }
+}
+
+// 3. 使用数据库
+class UserRepository(
+    private val userDao: UserDao
+) {
+    suspend fun getUsers(): List<User> {
+        return userDao.getAll()
+    }
+}
+```
+
+
+
+
+
+
+
+### 多Activity共享ViewModel
+
+```kotlin
+// 一个文件搞定
+object SharedSessionManager {
+    private val viewModelStore = ViewModelStore()
+    
+    fun getSharedViewModel(owner: ViewModelStoreOwner = Application()): SharedViewModel {
+        return ViewModelProvider(viewModelStore) { 
+            SharedViewModelFactory() 
+        }.get(SharedViewModel::class.java)
+    }
+    
+    class SharedViewModel : ViewModel() {
+        val data = MutableLiveData<String>()
+        
+        override fun onCleared() {
+            // 所有 Activity 销毁时调用
+            super.onCleared()
+        }
+    }
+}
+
+// 在任何 Activity 中使用
+class AnyActivity : AppCompatActivity() {
+    private val sharedViewModel = SharedSessionManager.getSharedViewModel()
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        sharedViewModel.data.observe(this) { /* 更新 */ }
+    }
+}
+```
+
+或者使用koin官方推荐：
+
+```kotlin
+// 使用 Koin AndroidX 扩展
+implementation "io.insert-koin:koin-androidx-scope:$koin_version"
+implementation "io.insert-koin:koin-androidx-viewmodel:$koin_version"
+
+// 创建共享作用域并绑定到 Activity 生命周期
+class SharedActivity : AppCompatActivity() {
+    // 创建作用域并绑定到生命周期
+    private val sharedScope by activityScope(named("shared"))
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // 获取共享数据
+        val sharedData = sharedScope.get<SharedData>()
+        
+        // 当 Activity 销毁时，Koin 会自动检查引用并决定是否关闭
+    }
+    // 不需要手动 close()
+}
+```
+
+
+
+
+
+
+
+
+
+### 一个好的MVVM设计
+
+```kotlin
+
+val appModule = module {
+    // 1. 数据层 - 单例
+    single { AppDatabase.getInstance(get()) }
+    single { get<AppDatabase>().albumDao() }
+    single { get<AppDatabase>().photoDao() }
+    
+
+    // 2. Repository 层 - 单例
+    single { AlbumRepository(get()) }
+    single { PhotoRepository(get()) }
+    
+    // 3. 网络层 - 单例
+    single { Retrofit.Builder().build().create(ApiService::class.java) }
+    
+    // 4. ViewModel 层 - factory（每个 ViewModel 实例新创建）
+    viewModel { MainViewModel(get(), get()) }
+    viewModel { (albumId: String) -> DetailViewModel(albumId, get()) }
+}
+```
+
+### androidApplication()获取context
+
+在 Koin 中，androidApplication() 只能在 Koin 模块中使用，并且只能在 Koin 已经启动并且有 Android 上下文的情况下使用。因此，我们通常会在 Application 类的 onCreate 中启动 Koin，并传递 this（Application）给 Koin。
+
+### KoinComponent & KoinScopeComponent
+
+`KoinComponent` 只是一个**接口**，它让类能够访问 Koin 容器：
+
+```kotlin
+// KoinComponent 的简化定义
+interface KoinComponent {
+    // 默认实现提供了 Koin 实例的访问
+    fun getKoin(): Koin = GlobalContext.get()
+}
+
+// 实现 KoinComponent 后，你就可以使用：
+class MyClass : KoinComponent {
+    // 现在可以访问 Koin 功能
+    val dependency: MyDependency by inject()
+}
+```
+
+并不是单例，也不是什么， 仅仅提供了能够`inject()`, `get()`等能力。通常用来标注`object类`，让他们能够注入代码。
+
+`KoinScopeComponent` 是 Koin 中用于**管理带生命周期的依赖注入**的接口。它与 `KoinComponent` 类似，但提供了**作用域（Scope）管理**的能力。**同作用域内的单例**。
+
+```kotlin
+// KoinScopeComponent 的定义
+interface KoinScopeComponent : KoinComponent {
+    val scope: Scope  // 必须提供 Scope 实例
+}
+
+// KoinComponent 的定义（对比）
+interface KoinComponent {
+    fun getKoin(): Koin = GlobalContext.get()
+}
+```
+
+使用示例：
+
+：
+
+```kotlin
+// 1. 创建自定义作用域
+class FeatureScope : Scope()
+
+// 2. 模块中定义作用域依赖
+val featureModule = module {
+    // 作用域限定对象
+    scope<FeatureScope> {
+        scoped { FeatureRepository() } // 同一个 UserScope 内是单例
+        scoped { FeatureViewModel(get()) } // 同一个 UserScope 内是单例
+    }
+}
+
+// 3. 实现 KoinScopeComponent
+class FeatureActivity : AppCompatActivity(), KoinScopeComponent {
+    // 提供 Scope 实例
+    override val scope: Scope by lazy {
+        getKoin().createScope(
+            scopeId = "feature_${this.hashCode()}",
+            qualifier = FeatureScope::class
+        )
+    }
+    
+    // 使用作用域内的依赖
+    private val viewModel: FeatureViewModel by scope.inject()
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // 直接使用注入的 viewModel
+        viewModel.loadData()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // 关闭作用域，释放资源
+        scope.close()
+    }
+}
+```
+
+使用 `KoinScopeComponent` 的场景：
+
+1. **有生命周期的对象**：如用户会话、临时任务
+2. **需要隔离的数据**：不同用户/页面的数据隔离
+3. **资源管理**：需要及时释放的资源
+4. **复杂依赖关系**：嵌套的依赖关系
+
+并不一定需要让类去继承它。
+
+
+
+### scope
+
+```kotlin
+// 没有 KoinScopeComponent
+class WithoutComponent {
+    // 需要自己管理 Scope
+    private lateinit var scope: Scope
+    
+    fun setupScope() {
+        scope = getKoin().createScope("id", MyScope::class)
+    }
+    
+    fun cleanup() {
+        scope.close()
+    }
+}
+
+// 有 KoinScopeComponent
+class WithComponent : KoinScopeComponent {
+    // 必须提供 scope
+    override val scope: Scope = getKoin().createScope("id", MyScope::class)
+    
+    // 可以直接使用 scope 的属性
+    val session: UserSession by scope.inject()
+}
+```
+
+**什么是 `scope.close()`**
+
+```kotlin
+// 当调用 scope.close() 时：
+// 1. ✅ 作用域内的所有 scoped 实例被释放
+// 2. ✅ 作用域不能再使用
+// 3. ✅ 其他使用同一作用域的地方都会出错
+
+// ❌ 危险的代码：多个 Activity 共享同一个作用域
+object GlobalScope {
+    val sharedScope = getKoin().createScope("shared", SharedScope::class)
+}
+
+class ActivityA : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 使用共享作用域
+        val data = GlobalScope.sharedScope.get<SharedData>()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // 危险！第一个销毁的 Activity 就关闭了作用域
+        GlobalScope.sharedScope.close()
+    }
+}
+
+class ActivityB : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // ❌ 如果 ActivityA 先销毁了，这里会崩溃
+        val data = GlobalScope.sharedScope.get<SharedData>()
+    }
+}
+
+
+// 创建作用域
+val myScope = koin.createScope("scope_id", named<MyType>())
+// 获取已创建的作用域 //关闭作用域后，无法再从中注入实例，否则会抛出异常。
+val existingScope = koin.getScope("scope_id")
+// 创建或获取作用域
+val scope = koin.getOrCreateScope("scope_id", named<MyType>())
+ 
+// 关闭作用域
+scope.close()
+
+
+//重点：Koin提供KoinScopeComponent接口，方便将作用域关联到类：
+class A : KoinScopeComponent {
+    override val scope: Scope by lazy { createScope(this) }
+    
+    // 从作用域注入依赖
+    val b: B by inject()
+    
+    fun closeScope() {
+        scope.close() // 记得关闭作用域
+    }
+}
+ 
+// 模块定义
+module {
+    scope<A> {
+        scoped { B() }
+    }
+}
+```
+
+### android各种作用域
+
+Android组件作用域API
+Koin提供了专门的Android作用域API，如docs/reference/koin-android/scope.md所述，主要包括：
+
+activityScope()：创建与Activity生命周期绑定的作用域
+activityRetainedScope()：创建保留的作用域（基于ViewModel生命周期）
+fragmentScope()：创建与Fragment生命周期绑定的作用域
+
+activityScope:
+
+```kotlin
+// 模块定义
+val appModule = module {
+    activityScope {
+        scoped { UserPresenter(get()) }
+        scoped { UserAdapter(get()) }
+    }
+}
+ 
+// Activity中使用
+class UserActivity : AppCompatActivity(), AndroidScopeComponent {
+    override val scope: Scope by activityScope()
+    
+    private val presenter: UserPresenter by inject()
+    private val adapter: UserAdapter by inject()
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // 作用域会自动关闭，无需手动调用
+    }
+}
+```
+
+fragmentScope:
+
+```kotlin
+class UserFragment : Fragment(), AndroidScopeComponent {
+    override val scope: Scope by fragmentScope()
+    
+    // 可以注入Activity作用域中定义的依赖
+    private val presenter: UserPresenter by inject()
+}
+```
+
+viewModelScope
+
+ViewModel作用域是一种特殊的作用域，需注意ViewModel不能直接访问Activity或Fragment的作用域，以避免内存泄漏.
+
+```kotlin
+// 模块定义
+module {
+    viewModelScope {
+        scoped { UserRepository() }
+    }
+    
+    viewModelOf(::UserViewModel)
+}
+ 
+// ViewModel中使用
+class UserViewModel(private val repository: UserRepository) : ViewModel() {
+    // ...
+}
+ 
+// 激活ViewModel作用域工厂
+startKoin {
+    options(
+        viewModelScopeFactory()
+    )
+    modules(appModule)
+}
+```
+
+作用域高级特性
+作用域链接
+作用域链接允许一个作用域访问另一个作用域中的依赖，实现跨作用域共享实例：
+
+// 创建两个作用域
+val scopeA = koin.createScope("scopeA", named("A"))
+val scopeB = koin.createScope("scopeB", named("B"))
+
+// 链接作用域
+scopeA.linkTo(scopeB)
+
+// 现在scopeA可以访问scopeB中的依赖
+val dependency = scopeA.get<BDependency>()
+kotlin
+运行
+作用域原型
+Koin 4.1.0引入了作用域原型(Scope Archetypes)，可以为一类组件声明通用作用域：
+
+module {
+    // 为所有Activity声明通用作用域
+    activityScope {
+        scoped { AnalyticsTracker() }
+    }
+    
+    // 为所有Fragment声明通用作用域
+    fragmentScope {
+        scoped { ImageLoader() }
+    }
+}
+kotlin
+运行
+
+获取作用域源对象
+在作用域定义中，可以通过getSource()获取作用域的源对象：
+
+class A
+class B(val a: A)
+
+module {
+    scope<A> {
+        scoped { B(getSource()) } // 直接获取作用域源对象A
+    }
+}
+
+// 使用
+val a = koin.get<A>()
+val scope = a.createScope()
+val b = scope.get<B>() // b.a == a
+kotlin
+运行
