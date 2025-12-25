@@ -1120,6 +1120,12 @@ fun Application.main() {
 
 记录实践中的一些用法。
 
+### 通过koin拿全局conext
+
+在 Koin 中，`androidApplication() `只能在 Koin 模块中使用，并且只能在 Koin 已经启动并且有 Android 上下文的情况下使用。
+
+因此，我们通常会在 Application 类的 onCreate 中启动 Koin，并传递` this（Application）`给 Koin才能拿到。
+
 ### 非生命周期内如何注入✅
 
 
@@ -1580,7 +1586,7 @@ class SharedFragment : Fragment() {
 
 
 
-### 一个好的MVVM设计
+### 一个好的koin MVVM设计
 
 ```kotlin
 
@@ -1603,14 +1609,6 @@ val appModule = module {
     viewModel { (albumId: String) -> DetailViewModel(albumId, get()) }
 }
 ```
-
-### androidApplication()获取context
-
-在 Koin 中，`androidApplication() `只能在 Koin 模块中使用，并且只能在 Koin 已经启动并且有 Android 上下文的情况下使用。
-
-因此，我们通常会在 Application 类的 onCreate 中启动 Koin，并传递 this（Application）给 Koin。
-
-
 
 ### 全局协程Scope注入方案 ✅
 
