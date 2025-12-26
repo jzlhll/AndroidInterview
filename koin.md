@@ -1610,6 +1610,46 @@ val appModule = module {
 }
 ```
 
+
+
+### module懒加载
+
+99%的应用不需要module懒加载，是技术秀，过度工程化，理论最优的解决方案。一般情况，直接一次性加载所有module。
+
+**模块注册本身消耗极低** - **只是存储定义，构建依赖图**
+
+**真正的消耗在首次实例化时** - 特别是单例
+
+唯一使用场景推荐：
+
+```kotlin
+// 真实案例：直播功能（不是所有用户都开播）
+val liveStreamModule = module {
+    single { StreamEncoder() }      // 视频编码器，占CPU
+    single { RTMPSender() }         // 推流服务，耗流量
+    single { ChatRoomManager() }    // 聊天室管理
+}
+
+// 只有主播才需要加载直播模块
+class LiveStreamService {
+    fun startStreaming() {
+        // 主播点"开始直播"时才加载
+        loadKoinModules(liveStreamModule)
+        
+        // 立即使用这些服务
+        get<StreamEncoder>().start()
+        get<RTMPSender>().connect()
+    }
+    
+    fun stopStreaming() {
+        // 结束直播时卸载，释放资源
+        unloadKoinModules(liveStreamModule)
+    }
+}
+```
+
+
+
 ### 全局协程Scope注入方案 ✅
 
 #### 方案一：使用 Koin 的 `named` 限定符

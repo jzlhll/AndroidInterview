@@ -55,6 +55,9 @@ flow.fold(initial) { acc, v -> } // 带初始值的累积
 //转换
 flow.stateIn(scope)           // 转为StateFlow
 flow.shareIn(scope)           // 转为SharedFlow
+flow.flowOn(Dispatchers.IO)   //修改前序动作的执行线程模型
+
+//开启收集
 flow.launchIn(scope)          // 在作用域启动收集
 ```
 
