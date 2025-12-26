@@ -18,6 +18,10 @@ android近期新特性和我的一些兼容处理。
   > 系统将响应结果通过消费者应用在调用 executeAppFunction 时提供的 OutcomeReceiver 传递回去
 
 * JobScheduler 配额优化改动；
+	背景：Android 16 对 scheduleAtFixedRate进行优化，应用后台时错过的任务，恢复到前台后最多仅执行 1 次。
+适配方案
+需严格按时执行的任务（如定时同步数据）：替换为 WorkManager，通过 PeriodicWorkRequestBuilder构建任务，设置约束条件，使用 WorkManager.getInstance(context).enqueueUniquePeriodicWork入队执行，实现 Worker类处理具体任务逻辑。
+可容忍延迟的任务（如日志上报）：使用 JobScheduler，构建 JobInfo并设置相关参数，通过 jobScheduler.schedule(jobInfo)调度任务，在服务中处理任务，如 LogUploadService中的 onStartJob和 onStopJob方法。
 
 * 最新的ART优化；
   
