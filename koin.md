@@ -4,7 +4,7 @@
 
 依赖注入是一种设计模式，在这种模式中，对象从外部源接收其依赖项，而不是在内部创建它们。这有助于实现松耦合、提高可测试性，并使代码架构更清晰。
 
-举例，有一辆汽车需要发动机。不使用依赖注入的情况下：：
+举例，有一辆汽车需要发动机。不使用依赖注入的情况下：
 
 ```kotlin
 class Engine {
@@ -23,7 +23,7 @@ class Car { //难以独立测试Car
 }
 ```
 
-改成依赖注入：
+改成注入：
 
 ```kotlin
 class Car(private val engine: Engine) {  // engine是被注入的，Car不用管哪里来的
@@ -33,7 +33,7 @@ class Car(private val engine: Engine) {  // engine是被注入的，Car不用管
     }
 }
 
-// Now we can easily provide different engines
+// 现在我们可以轻松提供不同的引擎
 val gasolineCar = Car(GasEngine())
 val electricCar = Car(ElectricEngine())
 ```
@@ -1034,6 +1034,128 @@ module {
 
 
 
+### 作用域Scope
+
+Koin提供了一个简单的API，让你可以定义具有有限生命周期的实例。当作用域上下文结束时，在该作用域下绑定的任何对象都不能再次被注入（它们会从容器中移除）。
+
+#### 作用域的定义
+
+`single`定义，创建一个在整个容器生命周期内持久存在（不能被销毁）的对象。
+
+`factory`定义，每次创建一个新对象。生命周期短。在容器中不持久化（不能共享）。
+
+`scoped`定义，创建一个与关联作用域生命周期持久绑定的对象。
+
+
+
+为特定类型声明作用域时，我们需要使用`scope`关键字：
+
+```kotlin
+module {
+    scope<MyType>{
+        scoped { Presenter() }
+        // ...
+    }
+}
+```
+
+`scope<A> { }` 等价于 `scope(named<A>()){ } `，但写法更简便。
+
+请注意，你也可以使用字符串限定符，例如：`scope(named("SCOPE_NAME")) { }`。
+
+
+
+#### 作用域的创建
+
+`createScope(id : ScopeID, scopeName : Qualifier)` 
+
+​	使用给定的id和scopeName创建一个封闭的作用域实例
+
+`getScope(id : ScopeID)` 
+
+​	检索具有给定id的先前创建的作用域
+
+`getOrCreateScope(id : ScopeID, scopeName : Qualifier)` 
+
+​	创建或检索（若已创建）具有给定id和scopeName的封闭作用域实例
+
+默认情况下，在对象上调用`createScope`不会传递作用域的“源”。你需要将其作为参数传递：`T.createScope(<source>)`
+
+Koin 有 `KoinScopeComponent` 这一概念，可帮助将作用域实例引入其类中：
+
+```kotlin
+class A : KoinScopeComponent {
+    override val scope: Scope by lazy { createScope(this) }
+}
+
+class B
+```
+
+`KoinScopeComponent`接口带来了多个扩展：
+
+`createScope` 
+
+​	用于根据当前组件的作用域 ID 和名称创建作用域
+
+`get`、`inject` 
+
+​	从作用域解析实例（等同于`scope.get()`和`scope.inject()`）
+
+```kotlin
+//第一步：让我们为A定义一个作用域，然后绑定B：
+module {
+    scope<A> {
+        scoped { B() } //绑定到了A的作用域
+    }
+}
+
+//第二步：借助org.koin.core.scope 的 get 和 inject 扩展直接解析 B 的实例：
+class A : KoinScopeComponent {
+    override val scope: Scope by lazy { newScope(this) }
+
+    // 懒加载注入B
+    val b : B by inject() //这是从scope得到的
+
+    fun doSomething() {
+    	  //也可以通过get直接获取
+        val b = get<B>()
+    }
+
+    fun close() {
+        scope.close() //不要忘记关闭作用域
+    }
+}
+```
+
+
+
+```kotlin
+// given the classes
+class ComponentA
+class ComponentB(val a : ComponentA)
+
+// module with scope
+module {
+    
+    scope<A> {
+        scoped { ComponentA() }
+        // will resolve from current scope instance
+        scoped { ComponentB(get()) }
+    }
+}
+
+// create scope
+val myScope = koin.createScope<A>()
+
+// from the same scope
+val componentA = myScope.get<ComponentA>()
+val componentB = myScope.get<ComponentB>()
+```
+
+默认情况下，如果在当前作用域中未找到定义，所有作用域都会回退到主作用域中进行解析。
+
+
+
 
 
 -----------
@@ -1584,6 +1706,78 @@ class SharedFragment : Fragment() {
 
 
 
+### 使用koin做单例和每次创建共用
+
+#### 方法1：使用不同的接口/抽象(推荐)
+
+```kotlin
+// 定义接口
+interface IFactoryService //内容都定义到这里
+interface ISingletonService : IFactoryService //继承它，没有特殊的就不用增加了
+
+class MyService : ISingletonService {
+    // 实现
+}
+
+val appModule = module {
+    // 单例绑定到 ISingletonService
+    single<ISingletonService> {
+       MyService()
+    }
+    // 工厂绑定到 IFactoryService
+    factoryOf<IFactoryService>(::MyService)
+  
+    // 带参数的工厂
+    factory { (id: String) -> 
+        MyService(id)
+    }
+}
+
+// 使用
+class ViewModel(
+	private val singletonService: ISingletonService // 获取单例
+  private val factoryService: IFactoryService// 获取工厂创建的新实例
+) {
+    //直接注入带参数的实例
+    fun getServiceWithId(id: String): MyService {
+        return get<MyService>(parameters = { parametersOf(id) })
+    }
+}
+```
+
+
+
+#### 方法2：使用不同的限定符（Qualifier）
+
+```kotlin
+// 定义限定符
+val SINGLETON_SERVICE = named("SingletonService")
+val FACTORY_SERVICE = named("FactoryService")
+
+val appModule = module {
+    // 单例版本
+    single<SERVICE_CLASS>(SINGLETON_SERVICE) {
+        SERVICE_CLASS()
+    }
+    
+    // 工厂版本（每次创建新实例）
+    factory<SERVICE_CLASS>(FACTORY_SERVICE) {
+        SERVICE_CLASS()
+    }
+}
+
+// 使用
+class ViewModel {
+    // 获取单例
+    private val singletonService: SERVICE_CLASS by inject(SINGLETON_SERVICE)
+    
+    // 获取工厂创建的新实例
+    private val factoryService: SERVICE_CLASS by inject(FACTORY_SERVICE)
+}
+```
+
+
+
 
 
 ### 一个好的koin MVVM设计
@@ -1595,7 +1789,6 @@ val appModule = module {
     single { AppDatabase.getInstance(get()) }
     single { get<AppDatabase>().albumDao() }
     single { get<AppDatabase>().photoDao() }
-    
 
     // 2. Repository 层 - 单例
     single { AlbumRepository(get()) }
@@ -1608,6 +1801,41 @@ val appModule = module {
     viewModel { MainViewModel(get(), get()) }
     viewModel { (albumId: String) -> DetailViewModel(albumId, get()) }
 }
+
+
+视图 (Activity)    -> ViewModel -> (Api/Okhttp)
+(Fragment/View)      
+
+
+视图 (Activity)    -> ViewModel -> (DB-Room)
+(Fragment/View)    
+
+
+视图 (Activity)    -> ViewModel -> 用例 (UseCase) -> 仓库接口 (Repo Interface)
+(Fragment/View)                                           ↑
+                                                  仓库实现 (Repo Impl)
+                                                      /      \
+                                              本地数据源        远程数据源
+                                               (DB-Room)      (Api/Okhttp)
+
+
+:app (Presentation Layer)
+    - 包含 Activities, Fragments, ViewModels, UI 相关代码。
+    - 依赖 `:domain` 和 `:data`。
+
+:domain (Domain Layer)
+    - 纯 Kotlin 模块。
+    - 包含 Entities, UseCases, Repository Interfaces。
+    - 不依赖任何其他模块。
+
+:data (Data Layer)
+    - Android Library 模块。
+    - 包含 Repository Implementations, DataSources, Data Models, Mappers。
+    - 依赖 `:domain`（以实现其接口）。
+    - 可以引入 Retrofit, Room 等 Android/第三方库。
+
+:shared (可选)
+    - 共享的通用工具、扩展函数等。
 ```
 
 
@@ -1646,6 +1874,19 @@ class LiveStreamService {
         unloadKoinModules(liveStreamModule)
     }
 }
+```
+
+
+
+### 相互依赖单例导致不断死循环
+
+在 Koin 中，两个单例相互引用确实会导致循环依赖问题，出现 `StackOverflowError`。以下是解决方案：
+
+将其中一个依赖声明为 `lazy`，延迟初始化：
+
+```kotlin
+class ServiceA {
+    val serviceB: ServiceB by inject()
 ```
 
 
