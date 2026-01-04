@@ -221,3 +221,27 @@ mavenPublishing {
 <img src="/Users/allan/Documents/codes/mycodes/我的总几个/pictures/maven-publish.png" alt="maven-publish" style="zoom:67%;" />
 
 发布成功！
+
+###  另外
+建议在开发中，不要每次有一点修改就去发布。这样白费时间。错了还得修改。在前面发布的时候，不要急着`publishToMavenCentral`，而是先`publishToMavenLocal()`。
+
+在使用模块的项目中：
+配置根目录settings.gradle：
+添加本地`mavenLocal()` 和一些镜像站：
+```groovy
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenLocal() //追加一个本地查找
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/central' }
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
+        maven { url 'https://mirrors.163.com/maven/repository/maven-public/' }
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+    }
+}
+```
