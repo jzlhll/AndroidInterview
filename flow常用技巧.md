@@ -527,6 +527,8 @@ combinedFlow.collect { ... }
 | debounce/distinctUntilChanged | 否               | 是（冷流场景）   | 只是限流 / 去重，不共享     |
 | shareIn/stateIn               | 是（冷→热）      | 否（热流场景）   | 转为热流，共享上游          |
 
+> 使用了 combine 操作符，它要求 所有 输入的 Flow 必须至少发射一次数据，才会合并并发射第一个结果。
+
 ### 四、性能优化：避免上游 “多开” 
 
 核心诉求是 “不浪费性能”，本质就是**避免冷流的多订阅者重复执行上游**，唯一解决方案：`shareIn`/`stateIn` 将冷流转热流。
