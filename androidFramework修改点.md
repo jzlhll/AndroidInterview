@@ -1,8 +1,8 @@
 ### 修改点
 
-android10有一个**UnSpecialized Application Process**机制提前预支好一个fork好的进程。
+android10增加了**UnSpecialized Application Process**机制，提前预支一个fork好的进程。
 
-修改MAX_CACHE_PROCESS 调整缓存数量
+修改MAX_CACHE_PROCESS 调整缓存数量。
 
 调整oom_adj。
 
@@ -18,13 +18,13 @@ bootLoader、kernel略：有一些策略比如日志减少，精简内核，异�
 
 到了init.rc阶段：裁剪里面的执行脚本；
 
-​	camera;
+camera;
 
-​	没有电话，就telephony相关移除，apk移除；
+没有电话，就telephony相关移除，apk移除；
 
-​	android.software.print.xml
+android.software.print.xml
 
-​	是否需要传感器等等。手势唤醒；锁屏通知等等。双击唤醒。
+是否需要传感器等等。手势唤醒；锁屏通知等等。双击唤醒。
 
 zygote-start加速；
 
