@@ -30,11 +30,11 @@ compose框架：整个行业都转向声明式UI模型。现在是，在概念�
 
 **数据沿着可组合函数层次往下流动**：应用会向顶级composable函数提供数据，沿着层级结构向下传递：
 
-<img src=".\pictures\compose数据向下变更UI.png" alt="compose数据向下变更UI" style="zoom:47%;" />
+<img src="..\pictures\compose数据向下变更UI.png" alt="compose数据向下变更UI" style="zoom:47%;" />
 
 **事件沿着可组合函数层次向上传递**：用户与UI元素交互，触发事件，进而app使用新数据再次调用Composable函数刷新界面。这叫做*recomposition*(重组)。
 
-<img src=".\pictures\compose用户事件向上传递.png" alt="compose用户事件向上传递" style="zoom:40%;" />
+<img src="..\pictures\compose用户事件向上传递.png" alt="compose用户事件向上传递" style="zoom:40%;" />
 
 ##### 简单的可组合函数(@Composable)
 
@@ -53,7 +53,7 @@ override fun onCreate(savedInstanceState: Bundle?) {
 }
 ```
 
-<img src="./pictures/jetpack-simpleText.png" alt="jetpack-simpleText" style="zoom:50%;" />
+<img src="../pictures/jetpack-simpleText.png" alt="jetpack-simpleText" style="zoom:50%;" />
 
 (暂时不要管为什么顶在statusBar上面。android15的edgeToEdge默认沉浸式。后面学到如何padding再讲解。1️⃣)
 
