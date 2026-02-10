@@ -1,4 +1,4 @@
-### AI Coding
+### AI
 
 **prompt engineering**
 
@@ -16,7 +16,29 @@ Response(回复):明确回复格式,确保LLM按照下游任务所需的准确�
 
 
 
-基于个人能力利用AI的态度：
+**openAI的接口参数**
+
+role：system/user/assistant
+
+model: 模型
+
+message:历史数组
+
+temperature:随机性
+
+top_p:采样，与temperature二选一
+
+max_tokens:
+
+functions:外部函数
+
+快速思考=低温度+短思考+少token
+
+深度思考=高思考步数+长文本+高探索。通过prompt来分布想，先推理再结论，自我检查，结构化输出。
+
+
+
+**基于个人能力利用AI的态度**
 
 简单功能：CRUD，搬砖类显著提效；
 
@@ -85,5 +107,29 @@ LangGraph是建立在LangChain之上的一个库，它引入了基于状态图�
 幻觉是指LLM生成的内容看似流畅合理，但实际上与输入不符或违背事实/常识的现象。例如，编造不存在的引用、给出错误答案或描述虚假事件。其根源在于LLM是基于统计模式而非事实数据库进行生成。缓解策略包括使用最新高质量数据训练、采用RAG提供真实上下文、通过提示工程引导模型以及让模型对生成内容进行溯源验证。
 
 
-** SKILL **
 
+**AI编程**
+
+* 辅助代码阅读
+
+* 新思路指引
+
+* 人为干预和识别接受后代码的风险
+
+* 辅助编写文章
+
+* 自动提示辅助
+
+  
+
+目前最强编程组合：
+
+rules + project rules + Skills + plan
+
+模型：
+
+gemini3pro，kimi，GLM4.7，GPT5.2，CC
+
+检查：
+
+code review bot
