@@ -311,3 +311,71 @@ Text(text = userName)
 
 
 
+## Jetpack Compose 学习路线（适配 View/XML 开发者）
+
+### 阶段 1：核心思想与环境准备（打基础）
+
+作为第一步，先建立对 Compose 底层逻辑的认知，而非直接学组件：
+
+1. Compose 核心理念：声明式 UI vs 你熟悉的命令式 UI（XML+findViewById），理解 “状态驱动 UI” 的核心逻辑
+2. 环境配置：Compose 的最低 SDK 要求、Gradle 依赖配置、Preview 预览功能使用（对比 XML 的实时预览）
+3. 基础规范：@Composable 注解、可组合函数的编写规则（对比 XML 布局文件的结构）
+
+### 阶段 2：基础 UI 组件（对应 XML 的基础控件）
+
+从你熟悉的基础控件切入，快速建立 Compose 的组件认知：
+
+1. 核心基础组件：Text（对比 TextView）、Button（对比 Button）、Image（对比 ImageView）
+2. 组件基础参数：掌握每个组件的核心配置项（如 Text 的文本、颜色；Image 的资源加载）
+3. 简单状态交互：比如 Button 点击修改 Text 内容（对比 setOnClickListener+setText）
+
+### 阶段 3：布局与 Modifier（核心核心！对应 XML 的布局 + 属性）
+
+Modifier 是 Compose 的 “万能属性工具”，也是和 XML 差异最大的点：
+
+1. Modifier 核心：理解其链式调用逻辑（对比 XML 的 layout_width、margin、padding、click 等属性）
+2. 基础布局：Column、Row、Box（分别对比 LinearLayout 垂直 / 水平、FrameLayout）
+3. 滚动列表：LazyColumn、LazyRow（对比 RecyclerView，重点理解 “懒加载” 逻辑）
+
+### 阶段 4：主题与样式（对应 XML 的 styles/themes）
+
+把你熟悉的样式体系映射到 Compose 中：
+
+1. MaterialTheme：Compose 的主题总控（对比 styles.xml/themes.xml）
+2. Typography：文字样式体系（对比 textAppearance）
+3. 样式复用：自定义可复用样式（对比 XML 中 style 属性的复用）
+4. 颜色体系：Color、ColorScheme（对比 color 资源文件）
+
+### 阶段 5：页面骨架（对应 XML 的页面整体布局）
+
+学习 Compose 的页面级布局封装，对应你熟悉的 “AppBar + 主体 + 底部导航” 结构：
+
+1. Scaffold：页面整体骨架（对比 ConstraintLayout 组合 AppBar + 内容 + 底部导航的写法）
+2. TopAppBar：顶部导航栏（对比 ActionBar/Toolbar）
+3. BottomBar/BottomNavigation：底部导航栏（对比 BottomNavigationView）
+
+### 阶段 6：交互与弹窗（对应 XML 的事件 + Dialog）
+
+补充 UI 交互能力，覆盖你关注的弹窗场景：
+
+1. 基础交互：点击、长按、拖拽等事件处理（对比 setOnClickListener 等）
+2. 系统弹窗：AlertDialog（对比传统 AlertDialog）
+3. 自定义弹窗：居中弹窗（通过 Box+Modifier + 状态控制实现，对比 Dialog/DialogFragment）
+4. 扩展弹窗：ModalBottomSheet（底部弹窗，对比 BottomSheetDialog）
+
+### 阶段 7：状态管理（Compose 的核心灵魂）
+
+这是脱离 “XML 思维” 的关键，理解声明式 UI 的核心：
+
+1. 基础状态：State、MutableState、remember（对比你熟悉的 “修改数据后手动更新 UI”）
+2. 状态提升：Compose 的最佳实践（理解数据单向流动）
+3. 状态保存：rememberSaveable（对比 onSaveInstanceState）
+
+### 阶段 8：进阶整合与实战（落地应用）
+
+把前面的知识点串联，结合你熟悉的 Android 开发体系：
+
+1. Compose+ViewModel：数据驱动 UI（对比 View+ViewModel）
+2. LazyColumn 高级用法：多类型 item、分页加载（对比 RecyclerView.Adapter）
+3. 自定义 Composable：封装复用组件（对比自定义 View/ViewGroup）
+4. 小型实战：比如 “列表页 + 详情页 + 居中弹窗” 的小应用，整合所有核心知识点
