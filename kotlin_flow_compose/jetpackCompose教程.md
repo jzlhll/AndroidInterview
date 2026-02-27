@@ -315,67 +315,102 @@ Text(text = userName)
 
 ### 阶段 1：核心思想与环境准备（打基础）
 
-作为第一步，先建立对 Compose 底层逻辑的认知，而非直接学组件：
-
-1. Compose 核心理念：声明式 UI vs 你熟悉的命令式 UI（XML+findViewById），理解 “状态驱动 UI” 的核心逻辑
-2. 环境配置：Compose 的最低 SDK 要求、Gradle 依赖配置、Preview 预览功能使用（对比 XML 的实时预览）
-3. 基础规范：@Composable 注解、可组合函数的编写规则（对比 XML 布局文件的结构）
+1. Compose 核心理念：声明式 UI vs 命令式 UI，理解 “状态驱动 UI”
+2. 环境配置：Compose 依赖、Preview 预览功能
+3. 基础规范：@Composable 注解、可组合函数编写规则
 
 ### 阶段 2：基础 UI 组件（对应 XML 的基础控件）
 
-从你熟悉的基础控件切入，快速建立 Compose 的组件认知：
+1. 核心基础组件：Text、Button、Image
+2. 组件基础参数：核心配置项
+3. 简单状态交互：Button 点击修改 Text 内容
 
-1. 核心基础组件：Text（对比 TextView）、Button（对比 Button）、Image（对比 ImageView）
-2. 组件基础参数：掌握每个组件的核心配置项（如 Text 的文本、颜色；Image 的资源加载）
-3. 简单状态交互：比如 Button 点击修改 Text 内容（对比 setOnClickListener+setText）
+### 阶段 3：布局与 Modifier（核心！对应 XML 的布局 + 属性）
 
-### 阶段 3：布局与 Modifier（核心核心！对应 XML 的布局 + 属性）
-
-Modifier 是 Compose 的 “万能属性工具”，也是和 XML 差异最大的点：
-
-1. Modifier 核心：理解其链式调用逻辑（对比 XML 的 layout_width、margin、padding、click 等属性）
-2. 基础布局：Column、Row、Box（分别对比 LinearLayout 垂直 / 水平、FrameLayout）
-3. 滚动列表：LazyColumn、LazyRow（对比 RecyclerView，重点理解 “懒加载” 逻辑）
+1. Modifier 核心：链式调用逻辑
+2. 基础布局：Column、Row、Box
+3. 滚动列表：LazyColumn、LazyRow（对比 RecyclerView，先掌握基础懒加载逻辑）
 
 ### 阶段 4：主题与样式（对应 XML 的 styles/themes）
 
-把你熟悉的样式体系映射到 Compose 中：
-
-1. MaterialTheme：Compose 的主题总控（对比 styles.xml/themes.xml）
-2. Typography：文字样式体系（对比 textAppearance）
-3. 样式复用：自定义可复用样式（对比 XML 中 style 属性的复用）
-4. 颜色体系：Color、ColorScheme（对比 color 资源文件）
+1. MaterialTheme：主题总控
+2. Typography：文字样式体系
+3. 样式复用：自定义可复用样式
+4. 颜色体系：Color、ColorScheme
 
 ### 阶段 5：页面骨架（对应 XML 的页面整体布局）
 
-学习 Compose 的页面级布局封装，对应你熟悉的 “AppBar + 主体 + 底部导航” 结构：
-
-1. Scaffold：页面整体骨架（对比 ConstraintLayout 组合 AppBar + 内容 + 底部导航的写法）
-2. TopAppBar：顶部导航栏（对比 ActionBar/Toolbar）
-3. BottomBar/BottomNavigation：底部导航栏（对比 BottomNavigationView）
+1. Scaffold：页面整体骨架
+2. TopAppBar：顶部导航栏
+3. BottomBar/BottomNavigation：底部导航栏
 
 ### 阶段 6：交互与弹窗（对应 XML 的事件 + Dialog）
 
-补充 UI 交互能力，覆盖你关注的弹窗场景：
-
-1. 基础交互：点击、长按、拖拽等事件处理（对比 setOnClickListener 等）
-2. 系统弹窗：AlertDialog（对比传统 AlertDialog）
-3. 自定义弹窗：居中弹窗（通过 Box+Modifier + 状态控制实现，对比 Dialog/DialogFragment）
-4. 扩展弹窗：ModalBottomSheet（底部弹窗，对比 BottomSheetDialog）
+1. 基础交互：点击、长按、拖拽等事件处理
+2. 系统弹窗：AlertDialog
+3. 自定义弹窗：居中弹窗
+4. 扩展弹窗：ModalBottomSheet
 
 ### 阶段 7：状态管理（Compose 的核心灵魂）
 
-这是脱离 “XML 思维” 的关键，理解声明式 UI 的核心：
+1. 基础状态：State、MutableState、remember
+2. 状态提升：Compose 最佳实践
+3. 状态保存：rememberSaveable
 
-1. 基础状态：State、MutableState、remember（对比你熟悉的 “修改数据后手动更新 UI”）
-2. 状态提升：Compose 的最佳实践（理解数据单向流动）
-3. 状态保存：rememberSaveable（对比 onSaveInstanceState）
+### 阶段 8：列表高级交互（新增 PullToRefreshBox）
 
-### 阶段 8：进阶整合与实战（落地应用）
+这是 LazyColumn/LazyRow 的核心进阶能力，对应你熟悉的 SwipeRefreshLayout+RecyclerView 触底：
 
-把前面的知识点串联，结合你熟悉的 Android 开发体系：
+1. 下拉刷新体系（两种核心实现）：
 
-1. Compose+ViewModel：数据驱动 UI（对比 View+ViewModel）
-2. LazyColumn 高级用法：多类型 item、分页加载（对比 RecyclerView.Adapter）
-3. 自定义 Composable：封装复用组件（对比自定义 View/ViewGroup）
-4. 小型实战：比如 “列表页 + 详情页 + 居中弹窗” 的小应用，整合所有核心知识点
+   - 基础版：
+
+     ```
+     SwipeRefresh
+     ```
+
+     （Compose 早期官方组件，适配 Material 2）
+
+     - 核心：isRefreshing 状态 + onRefresh 回调，用法简单但样式定制性弱
+
+     
+
+   - 新版 / 增强版：
+
+     ```
+     PullToRefreshBox
+     ```
+
+     （Compose Material 3 新增组件，替代 SwipeRefresh）
+
+     - 核心：基于 Material 3 设计规范，支持更灵活的样式定制（刷新指示器、下拉距离、动画等）
+     - 关键：掌握其参数（refreshing、onRefresh、indicator、content 等），对比 SwipeRefresh 的差异
+
+     
+
+   
+
+2. 触底加载：LazyColumn/LazyRow 的 onScrollEvent 监听
+
+   - 核心：检测列表滚动位置，判断是否滑到最后一项触发加载
+   - 关键：处理加载中状态、避免重复请求
+
+   
+
+3. 组合使用：PullToRefreshBox + LazyColumn + 触底加载（Material 3 推荐的列表交互组合）
+
+### 阶段 9：进阶整合与实战（落地应用）
+
+1. Compose+ViewModel：结合 PullToRefreshBox 处理异步刷新数据
+2. LazyColumn 高级用法：多类型 item、分页加载 + PullToRefreshBox 刷新
+3. 自定义 PullToRefreshBox：定制刷新指示器样式（比如替换默认动画）
+4. 小型实战：“PullToRefreshBox 下拉刷新 + LazyColumn 触底加载 + 居中弹窗提示” 的完整列表页
+
+------
+
+### 关于 PullToRefreshBox 的关键补充（适配你的学习需求）
+
+1. **所属版本**：`PullToRefreshBox` 是 Compose Material 3（通常对应 Compose 版本≥1.6.0）的新增组件，是官方推荐替代旧版`SwipeRefresh`的方案，如果你学习的是新版 Compose，优先学这个；
+2. **核心逻辑**：和`SwipeRefresh`一致（状态驱动刷新），但 API 设计更贴合 Material 3，定制化能力更强，比如可以自定义刷新指示器的位置、动画、下拉阈值等；
+3. **学习优先级**：先理解 “下拉刷新的核心逻辑（状态 + 回调）”，再对比学习`SwipeRefresh`和`PullToRefreshBox`的用法差异，重点掌握`PullToRefreshBox`的参数配置；
+4. **对比传统开发**：`PullToRefreshBox` 相当于 “升级版 SwipeRefreshLayout”，无需嵌套 XML，直接包裹 LazyColumn 即可，代码更简洁，样式定制更灵活。
