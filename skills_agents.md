@@ -1,3 +1,16 @@
+
+未来干的事情：
+
+- Skills细化
+
+- 多Agents协同
+
+- Context Window（记忆窗口，上下文窗口）
+
+
+================
+
+
 这是为你定制的 **Trae + Android 开发场景** 多层 Skill 目录结构模板（完全符合官方最佳实践，一层分类 + 一层 Skill 目录，无过深嵌套），你可直接按这个结构在项目根目录创建，复制即用：
 
 ------
@@ -610,3 +623,234 @@ plaintext
 1. 你要求的 4 个核心 Agent 覆盖了 “需求→UI→开发→Review” 的核心环节，补充的 4 个 Agent 完善了 “测试→合规→性能→部署” 的全流程；
 2. 每个 Agent 的 Skill 绑定精准，约束明确（如 UI 工程师不写 kt/java），可直接在 Trae 中配置；
 3. 按协作流程调用 Agent，可实现 Android 开发的全流程自动化协作，既保证分工专业，又避免重复工作。
+
+name	description
+code-reviewer
+Use this skill to review code. It supports both local changes (staged or working tree) and remote Pull Requests (by ID or URL). It focuses on correctness, maintainability, and adherence to project standards.
+Code Reviewer
+This skill guides the agent in conducting professional and thorough code reviews for both local development and remote Pull Requests.
+
+Workflow
+1. Determine Review Target
+Remote PR: If the user provides a PR number or URL (e.g., "Review PR #123"), target that remote PR.
+Local Changes: If no specific PR is mentioned, or if the user asks to "review my changes", target the current local file system states (staged and unstaged changes).
+2. Preparation
+For Remote PRs:
+Checkout: Use the GitHub CLI to checkout the PR.
+gh pr checkout <PR_NUMBER>
+Preflight: Execute the project's standard verification suite to catch automated failures early.
+npm run preflight
+Context: Read the PR description and any existing comments to understand the goal and history.
+For Local Changes:
+Identify Changes:
+Check status: git status
+Read diffs: git diff (working tree) and/or git diff --staged (staged).
+Preflight (Optional): If the changes are substantial, ask the user if they want to run npm run preflight before reviewing.
+3. In-Depth Analysis
+Analyze the code changes based on the following pillars:
+
+Correctness: Does the code achieve its stated purpose without bugs or logical errors?
+Maintainability: Is the code clean, well-structured, and easy to understand and modify in the future? Consider factors like code clarity, modularity, and adherence to established design patterns.
+Readability: Is the code well-commented (where necessary) and consistently formatted according to our project's coding style guidelines?
+Efficiency: Are there any obvious performance bottlenecks or resource inefficiencies introduced by the changes?
+Security: Are there any potential security vulnerabilities or insecure coding practices?
+Edge Cases and Error Handling: Does the code appropriately handle edge cases and potential errors?
+Testability: Is the new or modified code adequately covered by tests (even if preflight checks pass)? Suggest additional test cases that would improve coverage or robustness.
+4. Provide Feedback
+Structure
+Summary: A high-level overview of the review.
+Findings:
+Critical: Bugs, security issues, or breaking changes.
+Improvements: Suggestions for better code quality or performance.
+Nitpicks: Formatting or minor style issues (optional).
+Conclusion: Clear recommendation (Approved / Request Changes).
+Tone
+Be constructive, professional, and friendly.
+Explain why a change is requested.
+For approvals, acknowledge the specific value of the contribution.
+5. Cleanup (Remote PRs only)
+After the review, ask the user if they want to switch back to the default branch (e.g., main or master).
+
+
+
+
+
+你的理解完全正确！针对每个 Android package 创建 README 文档，记录该目录的核心功能、关键逻辑、依赖关系，本质上是你手动为 Agent 搭建的 “轻量化长久记忆系统” —— 这和 OpenClaw 的 “粗略长久记忆” 逻辑一致（都是通过 “摘要 / 索引” 替代全量代码），且因为是你手动编写的结构化信息，比 Agent 自动生成的粗略摘要更精准，检索效率也更高。
+一、为什么这种方式是有效的 “小型长久记忆”？
+结合之前讲的 Agent 记忆逻辑，你手动写的 package 级 README，完美契合 “长久记忆” 的核心诉求：
+表格
+长久记忆核心要求	你的 package README 方案如何满足
+突破窗口限制	把几千 / 几万行的 package 代码，浓缩成几百字的 README（远小于 128K 窗口），Agent 能快速加载并记住核心逻辑
+检索精准	README 是你按业务逻辑写的结构化摘要，Agent 检索时（比如搜 “购物车逻辑”），不用在海量代码里找，直接读对应 package 的 README
+持久化存储	README 是本地文件，永久保存在项目中，Agent 每次检索都能读取，相当于 “永久记忆”
+降低算力消耗	读取几百字的 README，比加载几万行代码到窗口更省算力，Agent 响应更快
+二、如何优化你的 package README，让 Agent 检索更高效？
+为了让 Agent“优先读、读得懂、用得上” 这些 README，建议按固定模板编写（适配 Android package 的特点），以下是可直接套用的模板：
+Android package README 模板（以com.xxx.android.cart为例）
+markdown
+# Package：com.xxx.android.cart（购物车模块）
+## 核心功能
+1. 购物车商品增删改查（支持批量操作）；
+2. 库存实时校验（调用商品详情接口）；
+3. 价格计算（含优惠、运费）；
+4. 购物车数据本地缓存（Room）+ 云端同步。
+
+## 关键类/方法
+- CartViewModel.kt：核心逻辑（addCart()/deleteCart()/checkStock()）；
+- CartRepository.kt：数据层（Room+Retrofit）；
+- cart_layout.xml：购物车列表布局（依赖RecyclerView）。
+
+## 依赖关系
+- 依赖network模块（com.xxx.android.network）：调用商品/库存接口；
+- 依赖utils模块（com.xxx.android.utils）：价格计算工具类；
+- 依赖ui模块（com.xxx.android.ui）：购物车列表布局。
+
+## 注意事项
+1. 库存校验需先调用/checkStock接口，返回true才能加入购物车；
+2. 本地缓存有效期1小时，超时自动同步云端；
+3. 价格计算需兼容多币种（人民币/美元）。
+核心编写原则（让 Agent 更易检索）
+关键词前置：标题 / 核心功能里优先放 Agent 会检索的关键词（如 “购物车”“库存校验”“Room 缓存”）；
+结构固定：每个 package 的 README 都按 “核心功能→关键类→依赖→注意事项” 写，Agent 能形成固定的检索习惯；
+简约不冗余：只记 “核心逻辑”，不写具体代码（代码在文件里，README 只做索引）；
+关联其他 package：标注依赖关系，Agent 能快速串联跨模块逻辑（比如改购物车时，知道要联动商品模块）。
+三、如何让 Agent “优先读取这些 README”？
+在 Trae/OpenClaw 中，只需简单配置，就能让 Agent 检索时先读 README，再读代码：
+1. Trae 中配置（图形界面）
+进入 Agent 配置页（比如 “代码实现工程师 Agent”）；
+找到「记忆 / 检索规则」模块；
+添加「优先检索文件」：把所有 package 的 README.md 加入列表（路径如com/xxx/android/*/README.md）；
+配置检索优先级：README.md > 代码文件（确保 Agent 先读摘要，再读细节）。
+2. OpenClaw 中配置（代码层面）
+修改 OpenClaw 的retrieve_long_memory函数，让它优先检索 README 文件：
+python
+运行
+def retrieve_long_memory(keywords):
+    matched_content = []
+    # 第一步：优先检索所有package的README.md
+    readme_paths = [f for f in os.listdir(PROJECT_DIR) if f.endswith("README.md") and "package" in f.lower()]
+    for readme in readme_paths:
+        with open(readme, "r", encoding="utf-8") as f:
+            content = f.read()
+            if all(keyword in content for keyword in keywords):
+                matched_content.append(f"【Package摘要】：{content}")
+    
+    # 第二步：再检索代码文件（补充细节）
+    code_files = [f for f in os.listdir(PROJECT_DIR) if f.endswith((".kt", ".xml"))]
+    # ... 原有代码检索逻辑 ...
+    
+    return "\n---\n".join(matched_content)
+四、这种方式的优势 & 注意事项
+优势
+低成本易落地：不用搭向量数据库，纯手动写 README，适合个人 / 小团队；
+可控性高：你比 Agent 更懂项目逻辑，写的摘要比 Agent 自动生成的更精准；
+兼容现有工具：Trae/OpenClaw 都能优先检索 README，无需改造 Agent 核心逻辑。
+注意事项
+及时更新：代码逻辑变更后，要同步更新 README（否则 Agent 会读旧的摘要，导致逻辑错误）；
+避免过度冗余：每个 README 控制在 300 字内，太长会占用 Agent 的短期窗口；
+统一命名：所有 package 的 README 都命名为README.md，Agent 能批量检索，避免漏检。
+总结
+你提出的 “每个 package 写 README 记录核心功能”，是轻量化、高性价比的长久记忆方案，本质是手动为 Agent 构建 “结构化摘要索引”；
+按固定模板编写 README（核心功能 + 关键类 + 依赖），能让 Agent 检索更精准；
+配置 Trae/OpenClaw 的检索优先级，让 Agent“先读 README，再读代码”，既突破窗口限制，又保证逻辑精准。
+这种方式比 OpenClaw 的 “粗略长久记忆” 更精准，比向量数据库方案更易落地，完全适配你的 Android 开发 + 多 Agent 协作场景。如果需要，我可以给你整理一份 Android 项目各核心 package（ui/network/utils/cart 等）的 README 模板，你直接填空即可。
+
+
+
+
+
+
+
+
+
+你想知道在 Android 开发 + Trae 的场景下，如何搭建基于 Tag 的长久记忆体系（完全脱离 OpenClaw 相关举例）—— 本质是给 Android 项目的所有核心内容（package、README、代码文件、需求文档）打上标准化的标签，让 Trae 的 Agent 检索 “长久记忆” 时，通过 Tag 快速定位所需内容，而非遍历海量代码 / 文档，这是比单纯写 README 更高效的长久记忆方案。
+一、先搞懂：Android+Trae 下 “基于 Tag 的 Mem 体系” 是什么？
+用通俗的话讲：你给 Android 项目里的每一个核心内容（比如cart包、购物车 README、CartViewModel.kt、需求 Plan.md），打上标准化的标签（比如业务:购物车、技术:MVVM、模块:cart）；Trae 会把这些 “内容 + Tag” 存入长期记忆库；当你让 Agent 写 “购物车库存校验逻辑” 时，Agent 不会再去翻几万行代码，而是直接检索业务:购物车+功能:库存校验的 Tag，快速加载对应的内容到短期窗口 —— 这就是 “基于 Tag 的长久记忆”，核心是用 Tag 做索引，让记忆检索更精准、更快。
+对比你之前的 “package README 方案”：
+README 是 “内容摘要”，Tag 是 “内容索引”；
+两者结合：README 负责 “记核心逻辑”，Tag 负责 “快速找到这个 README / 代码”，是 1+1>2 的长久记忆方案。
+二、搭建 Android+Trae 的 Tag Mem 体系（5 步落地）
+步骤 1：定义 Android 场景的标准化 Tag 体系（核心）
+Tag 乱了 = 记忆乱了，必须先定统一的 Tag 分类和规则，以下是适配 Android 开发的 Tag 体系（可直接套用）：
+表格
+Tag 分类	示例（Android 场景）	说明（标注范围）
+模块 Tag	模块:cart、模块:goods、模块:ui、模块:network	对应项目的 package（如 com.xxx.android.cart）
+业务 Tag	业务:购物车、业务:商品详情、业务:登录、业务:支付	对应核心业务功能
+技术 Tag	技术:MVVM、技术:Retrofit、技术:Room、技术:ViewBinding	对应使用的技术栈 / 架构
+功能 Tag	功能:库存校验、功能:价格计算、功能:布局渲染	对应具体功能点
+类型 Tag	类型:README、类型:布局文件、类型:ViewModel、类型:需求文档	对应文件 / 文档类型
+核心规则：
+Tag 格式统一：分类:值（英文冒号，无空格）；
+每个内容至少打 3 个 Tag（模块 + 业务 + 类型），可选加技术 / 功能 Tag；
+避免重复：比如业务:购物车和业务:cart只选一种（建议用中文，Agent 检索更准）。
+步骤 2：给 Android 项目内容批量打 Tag（落地操作）
+针对项目里的核心内容（README、代码文件、需求 Plan.md），按以下方式打 Tag：
+方式 1：给 README 打 Tag（最优先）
+在每个 package 的 README 开头，新增「Tag 标注」模块，示例（cart 包 README）：
+markdown
+# Package：com.xxx.android.cart（购物车模块）
+## Tag标注
+模块:cart、业务:购物车、类型:README、技术:MVVM、技术:Room、功能:库存校验、功能:价格计算
+
+## 核心功能
+1. 购物车商品增删改查（支持批量操作）；
+...（后续内容不变）
+方式 2：给核心代码文件打 Tag（注释形式）
+在关键类 / 布局文件的开头，用注释加 Tag，示例（CartViewModel.kt）：
+kotlin
+/**
+ * Tag标注：模块:cart、业务:购物车、类型:ViewModel、技术:MVVM、功能:库存校验
+ * 购物车核心ViewModel，处理增删改查、库存校验逻辑
+ */
+class CartViewModel : ViewModel() {
+    // ... 业务逻辑
+}
+方式 3：在 Trae 中手动给文件打 Tag（可视化操作）
+打开 Trae 客户端，进入「项目管理」→「文件管理」；
+选中 Android 项目的核心文件（如 cart 包的所有.kt/.xml/.md）；
+点击「添加 Tag」，输入标准化 Tag（如模块:cart、业务:购物车）；
+Trae 会自动把 “文件 + Tag” 存入长期记忆库（.trae/memory/tags/目录）。
+步骤 3：配置 Trae 的 Tag 检索规则（让 Agent 优先按 Tag 检索）
+这是关键一步：让 Trae 的 Agent 检索长久记忆时，先按 Tag 筛选，再加载内容，而非遍历所有文件。
+Trae 图形界面配置步骤：
+进入任意 Agent 的配置页（比如 “代码实现工程师 Agent”）；
+找到「记忆管理」→「检索规则」模块；
+开启「优先按 Tag 检索」开关；
+设置「Tag 检索优先级」：模块 Tag > 业务 Tag > 功能 Tag > 技术 Tag > 类型 Tag；
+添加「默认检索 Tag」：比如给 “代码实现工程师 Agent” 设置默认 Tag技术:MVVM+类型:ViewModel，让它优先检索 MVVM 相关的 ViewModel 代码；
+保存配置，Trae 会自动应用 Tag 检索规则。
+核心逻辑（Trae 底层）：
+当你输入指令 “写购物车库存校验的 ViewModel 逻辑” 时，Trae 会：
+解析指令中的关键词→提取 Tag：业务:购物车+功能:库存校验+类型:ViewModel；
+去长期记忆库检索包含这些 Tag 的内容；
+只加载这些内容到短期窗口（128K），而非加载整个 cart 包的代码。
+步骤 4：配置 Tag 记忆的自动更新规则（避免记忆过期）
+代码 / 需求变了，Tag 也要同步更新，否则 Agent 会读取旧内容。Trae 中可配置自动更新规则：
+在 Trae 的「记忆管理」→「更新规则」中；
+开启「文件变更自动更新 Tag」：当你修改 CartViewModel.kt 后，Trae 会提醒你 “是否同步更新 Tag”；
+开启「每周 Tag 校验」：Trae 会自动扫描项目，提示你 “未打 Tag 的核心文件”“Tag 与内容不符的文件”（比如代码里用了 Jetpack Compose，但 Tag 还是技术:ViewBinding）；
+手动维护：每次迭代后，花 5 分钟检查核心 package 的 Tag 是否准确。
+步骤 5：验证 Tag Mem 体系是否生效
+输入测试指令给 “代码实现工程师 Agent”：
+帮我完善 com.xxx.android.cart 模块中，购物车库存校验的逻辑，要求用 MVVM 架构。
+预期效果：
+Agent 会快速检索模块:cart+业务:购物车+功能:库存校验+技术:MVVM的 Tag；
+只加载 cart 包的 README、CartViewModel.kt、CartRepository.kt 到窗口；
+输出的代码会精准匹配这些内容的逻辑，不会出现 “引用不存在的方法”“和现有代码冲突” 的问题；
+在 Trae 的「记忆检索日志」中，能看到 Agent 检索的 Tag 列表和匹配的内容，可验证检索是否精准。
+三、Tag Mem 体系的进阶优化（可选）
+1. 给不同 Agent 配置专属 Tag 集合
+Plan 需求工程师 Agent：专属 Tag类型:README+类型:需求文档，只检索 README 和需求 Plan；
+UI 工程师 Agent：专属 Tag模块:ui+技术:ViewBinding+类型:布局文件，只检索 xml 布局文件；
+提交 Review 工程师 Agent：专属 Tag类型:提交记录+业务:全量，检索所有提交记录的 Tag。
+2. 用 Tag 分组管理不同迭代版本
+给不同迭代的内容打版本 Tag：版本:V1.0、版本:V2.0，比如：
+购物车 V1.0：业务:购物车+版本:V1.0+功能:基础增删改查；
+购物车 V2.0：业务:购物车+版本:V2.0+功能:库存校验；
+Agent 可按版本 Tag 检索，避免混淆不同迭代的逻辑。
+3. 批量导入 / 导出 Tag
+在 Trae 的「Tag 管理」中，可导出所有 Tag 为 Excel（方便团队协作），也可批量导入 Tag（比如新项目复用现有 Tag 体系）。
+总结
+Android+Trae 的 Tag Mem 体系核心是：给项目内容打标准化 Tag，让 Agent 按 Tag 检索长久记忆，突破窗口限制且检索更精准；
+落地关键是 “统一 Tag 体系 + 给核心内容打 Tag + 配置 Trae 的 Tag 检索规则”，三步缺一不可；
+结合你之前的 package README 方案：README 做 “内容摘要”，Tag 做 “检索索引”，是最适合个人 / 小团队的轻量化长久记忆方案。
