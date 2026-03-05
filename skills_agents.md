@@ -675,6 +675,22 @@ After the review, ask the user if they want to switch back to the default branch
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 你的理解完全正确！针对每个 Android package 创建 README 文档，记录该目录的核心功能、关键逻辑、依赖关系，本质上是你手动为 Agent 搭建的 “轻量化长久记忆系统” —— 这和 OpenClaw 的 “粗略长久记忆” 逻辑一致（都是通过 “摘要 / 索引” 替代全量代码），且因为是你手动编写的结构化信息，比 Agent 自动生成的粗略摘要更精准，检索效率也更高。
 一、为什么这种方式是有效的 “小型长久记忆”？
 结合之前讲的 Agent 记忆逻辑，你手动写的 package 级 README，完美契合 “长久记忆” 的核心诉求：
@@ -734,11 +750,11 @@ def retrieve_long_memory(keywords):
             content = f.read()
             if all(keyword in content for keyword in keywords):
                 matched_content.append(f"【Package摘要】：{content}")
-    
+   
     # 第二步：再检索代码文件（补充细节）
     code_files = [f for f in os.listdir(PROJECT_DIR) if f.endswith((".kt", ".xml"))]
     # ... 原有代码检索逻辑 ...
-    
+   
     return "\n---\n".join(matched_content)
 四、这种方式的优势 & 注意事项
 优势
@@ -754,6 +770,16 @@ def retrieve_long_memory(keywords):
 按固定模板编写 README（核心功能 + 关键类 + 依赖），能让 Agent 检索更精准；
 配置 Trae/OpenClaw 的检索优先级，让 Agent“先读 README，再读代码”，既突破窗口限制，又保证逻辑精准。
 这种方式比 OpenClaw 的 “粗略长久记忆” 更精准，比向量数据库方案更易落地，完全适配你的 Android 开发 + 多 Agent 协作场景。如果需要，我可以给你整理一份 Android 项目各核心 package（ui/network/utils/cart 等）的 README 模板，你直接填空即可。
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -802,43 +828,43 @@ kotlin
  * Tag标注：模块:cart、业务:购物车、类型:ViewModel、技术:MVVM、功能:库存校验
  * 购物车核心ViewModel，处理增删改查、库存校验逻辑
  */
-class CartViewModel : ViewModel() {
+ class CartViewModel : ViewModel() {
     // ... 业务逻辑
-}
-方式 3：在 Trae 中手动给文件打 Tag（可视化操作）
-打开 Trae 客户端，进入「项目管理」→「文件管理」；
-选中 Android 项目的核心文件（如 cart 包的所有.kt/.xml/.md）；
-点击「添加 Tag」，输入标准化 Tag（如模块:cart、业务:购物车）；
-Trae 会自动把 “文件 + Tag” 存入长期记忆库（.trae/memory/tags/目录）。
-步骤 3：配置 Trae 的 Tag 检索规则（让 Agent 优先按 Tag 检索）
-这是关键一步：让 Trae 的 Agent 检索长久记忆时，先按 Tag 筛选，再加载内容，而非遍历所有文件。
-Trae 图形界面配置步骤：
-进入任意 Agent 的配置页（比如 “代码实现工程师 Agent”）；
-找到「记忆管理」→「检索规则」模块；
-开启「优先按 Tag 检索」开关；
-设置「Tag 检索优先级」：模块 Tag > 业务 Tag > 功能 Tag > 技术 Tag > 类型 Tag；
-添加「默认检索 Tag」：比如给 “代码实现工程师 Agent” 设置默认 Tag技术:MVVM+类型:ViewModel，让它优先检索 MVVM 相关的 ViewModel 代码；
-保存配置，Trae 会自动应用 Tag 检索规则。
-核心逻辑（Trae 底层）：
-当你输入指令 “写购物车库存校验的 ViewModel 逻辑” 时，Trae 会：
-解析指令中的关键词→提取 Tag：业务:购物车+功能:库存校验+类型:ViewModel；
-去长期记忆库检索包含这些 Tag 的内容；
-只加载这些内容到短期窗口（128K），而非加载整个 cart 包的代码。
-步骤 4：配置 Tag 记忆的自动更新规则（避免记忆过期）
-代码 / 需求变了，Tag 也要同步更新，否则 Agent 会读取旧内容。Trae 中可配置自动更新规则：
-在 Trae 的「记忆管理」→「更新规则」中；
-开启「文件变更自动更新 Tag」：当你修改 CartViewModel.kt 后，Trae 会提醒你 “是否同步更新 Tag”；
-开启「每周 Tag 校验」：Trae 会自动扫描项目，提示你 “未打 Tag 的核心文件”“Tag 与内容不符的文件”（比如代码里用了 Jetpack Compose，但 Tag 还是技术:ViewBinding）；
-手动维护：每次迭代后，花 5 分钟检查核心 package 的 Tag 是否准确。
-步骤 5：验证 Tag Mem 体系是否生效
-输入测试指令给 “代码实现工程师 Agent”：
-帮我完善 com.xxx.android.cart 模块中，购物车库存校验的逻辑，要求用 MVVM 架构。
-预期效果：
-Agent 会快速检索模块:cart+业务:购物车+功能:库存校验+技术:MVVM的 Tag；
-只加载 cart 包的 README、CartViewModel.kt、CartRepository.kt 到窗口；
-输出的代码会精准匹配这些内容的逻辑，不会出现 “引用不存在的方法”“和现有代码冲突” 的问题；
-在 Trae 的「记忆检索日志」中，能看到 Agent 检索的 Tag 列表和匹配的内容，可验证检索是否精准。
-三、Tag Mem 体系的进阶优化（可选）
+ }
+ 方式 3：在 Trae 中手动给文件打 Tag（可视化操作）
+ 打开 Trae 客户端，进入「项目管理」→「文件管理」；
+ 选中 Android 项目的核心文件（如 cart 包的所有.kt/.xml/.md）；
+ 点击「添加 Tag」，输入标准化 Tag（如模块:cart、业务:购物车）；
+ Trae 会自动把 “文件 + Tag” 存入长期记忆库（.trae/memory/tags/目录）。
+ 步骤 3：配置 Trae 的 Tag 检索规则（让 Agent 优先按 Tag 检索）
+ 这是关键一步：让 Trae 的 Agent 检索长久记忆时，先按 Tag 筛选，再加载内容，而非遍历所有文件。
+ Trae 图形界面配置步骤：
+ 进入任意 Agent 的配置页（比如 “代码实现工程师 Agent”）；
+ 找到「记忆管理」→「检索规则」模块；
+ 开启「优先按 Tag 检索」开关；
+ 设置「Tag 检索优先级」：模块 Tag > 业务 Tag > 功能 Tag > 技术 Tag > 类型 Tag；
+ 添加「默认检索 Tag」：比如给 “代码实现工程师 Agent” 设置默认 Tag技术:MVVM+类型:ViewModel，让它优先检索 MVVM 相关的 ViewModel 代码；
+ 保存配置，Trae 会自动应用 Tag 检索规则。
+ 核心逻辑（Trae 底层）：
+ 当你输入指令 “写购物车库存校验的 ViewModel 逻辑” 时，Trae 会：
+ 解析指令中的关键词→提取 Tag：业务:购物车+功能:库存校验+类型:ViewModel；
+ 去长期记忆库检索包含这些 Tag 的内容；
+ 只加载这些内容到短期窗口（128K），而非加载整个 cart 包的代码。
+ 步骤 4：配置 Tag 记忆的自动更新规则（避免记忆过期）
+ 代码 / 需求变了，Tag 也要同步更新，否则 Agent 会读取旧内容。Trae 中可配置自动更新规则：
+ 在 Trae 的「记忆管理」→「更新规则」中；
+ 开启「文件变更自动更新 Tag」：当你修改 CartViewModel.kt 后，Trae 会提醒你 “是否同步更新 Tag”；
+ 开启「每周 Tag 校验」：Trae 会自动扫描项目，提示你 “未打 Tag 的核心文件”“Tag 与内容不符的文件”（比如代码里用了 Jetpack Compose，但 Tag 还是技术:ViewBinding）；
+ 手动维护：每次迭代后，花 5 分钟检查核心 package 的 Tag 是否准确。
+ 步骤 5：验证 Tag Mem 体系是否生效
+ 输入测试指令给 “代码实现工程师 Agent”：
+ 帮我完善 com.xxx.android.cart 模块中，购物车库存校验的逻辑，要求用 MVVM 架构。
+ 预期效果：
+ Agent 会快速检索模块:cart+业务:购物车+功能:库存校验+技术:MVVM的 Tag；
+ 只加载 cart 包的 README、CartViewModel.kt、CartRepository.kt 到窗口；
+ 输出的代码会精准匹配这些内容的逻辑，不会出现 “引用不存在的方法”“和现有代码冲突” 的问题；
+ 在 Trae 的「记忆检索日志」中，能看到 Agent 检索的 Tag 列表和匹配的内容，可验证检索是否精准。
+ 三、Tag Mem 体系的进阶优化（可选）
 1. 给不同 Agent 配置专属 Tag 集合
 Plan 需求工程师 Agent：专属 Tag类型:README+类型:需求文档，只检索 README 和需求 Plan；
 UI 工程师 Agent：专属 Tag模块:ui+技术:ViewBinding+类型:布局文件，只检索 xml 布局文件；
