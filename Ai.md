@@ -133,3 +133,33 @@ gemini3pro，kimi，GLM4.7，GPT5.2，CC
 检查：
 
 code review bot
+
+
+
+**Ai编程技巧**
+
+> Boris Cherny团队11条workflow。plan，staff reviewer，persistent记忆，可视化。
+
+* Git worktrees，多分支并行工作
+
+* PlanMode 
+
+  复杂任务拆解，实现；同时，再开一个干净的会话来reviewer。
+
+  流程变更为：计划->执行->实现->review
+
+  跑偏立刻暂停，回到PlanMode，重新定义边界再继续。
+
+* 资产化记忆
+
+  *施工手册，代码风格，目录约定，常用命令，边界，坑*
+
+  每次完成开发后，跑一遍“技术债清扫”，小问题列出来，补充到md中
+
+* MCP协议直连
+
+  一些issue(如github链接)，figma等使用mcp来减少自己截图，复制等操作
+
+* 问题修复
+
+  直接把问题丢给AI，让他列出疑似点，不断对话，让它查找问题可能的原因。
