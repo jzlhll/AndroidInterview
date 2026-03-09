@@ -197,6 +197,14 @@ fun RememberUpdatedStateCaller() {
 
 - 执行逻辑：LaunchedEffect 的 Key 为常量 true，仅进入组合时执行一次；即使 onTimeout 回调更新，通过 rememberUpdatedState 包装后，3 秒后仍能执行最新的回调逻辑，且不会重启协程。
 
+>  当你需要在 长期运行的协程（如 LaunchedEffect 中的延迟、网络请求）中调用 可能变化的回调 / 参数 时，直接使用原参数会导致 “调用旧值”，而将参数设为 LaunchedEffect 的键又会导致协程频繁重启。
+>
+> rememberUpdatedState 的价值就在于：它能让你在不中断协程执行的前提下，始终持有最新的参数引用，完美解决 “旧回调” 问题。
+>
+> 记住这个场景：长期协程 + 可变回调 = 用 rememberUpdatedState 保鲜引用。
+>
+> https://blog.csdn.net/wangpengfei_p/article/details/157300422
+
 
 
 ### 6. produceState
