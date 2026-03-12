@@ -1,38 +1,4 @@
-
-
- 
-
-第五部分：状态提升
-
-本章节先跳过。后面有额外的独立章节再结合起来讲述。
-
-
-
-第六部分：Compose恢复状态
-
-rememberSaveable 与Activity的ViewModel的生命周期一样？避免旋转丢失信息
-
-* 存储状态的方式
-
-  bundle支持的数据都可以。
-
-  还可以使用Parcelize注解一个复杂类型（但是他本身里面的其他字段都是普通类型才行，这里你需要自行搜索知识库和对比我提供的链接是否准确？）
-
-  MapSaver/ListSaver, 举例说明。似乎就是把复杂类型转成普通类型？
-
-
-
-第七部分：状态容器
-
-本章节先跳过。后面有额外的独立章节再结合起来讲述。
-
-
-
-
-
-
-
-## Jetpack Compose State概述
+**Jetpack Compose State概述**
 
 应用中的**状态（State）**，指任何可以随时间变化的值，这个定义覆盖了从 Room 数据库到类中变量的所有场景。所有 Android 应用都需要向用户展示状态，典型示例包括：网络异常时弹出的 Snackbar、博客文章及评论内容、用户点击按钮时播放的涟漪动画、用户在图片上绘制的贴纸等。
 
@@ -161,9 +127,7 @@ val listState by remember { mutableStateOf(listOf<String>()) }
 listState = listState + "新元素"
 ```
 
-另外，
-
-`stateOf()` 无观察能力（即使强行修改也无重组）。
+另外， `stateOf()` 无观察能力（即使强行修改也无重组）。
 
 
 
@@ -576,4 +540,144 @@ fun InputScreen() {
 
 ### 第五部分：状态提升 & 状态容器
 
-本章节先跳过。后面有额外的独立章节再结合起来讲述。
+https://developer.android.google.cn/develop/ui/compose/state-hoisting
+
+**根据状态的「作用域（哪些组件需要访问）」和「生命周期（和哪个组件绑定）」** 选择存储位置，避免状态混乱、生命周期不一致（如屏幕旋转丢失数据）、UI 与业务逻辑耦合等问题。
+
+通过「分层存储」实现**状态的最小作用域、单向数据流、UI 与业务解耦**。
+
+#### 1. 状态存在**单个 Composable 节点内部**（局部状态）
+
+状态**仅当前 Composable 使用**，无任何子 / 父组件依赖，生命周期和该 Composable 完全绑定（组件销毁，状态消失）。
+
+私有化、外部不可访问，轻量易维护；用`remember`（内存缓存，重组保留、配置变更丢失）或`rememberSaveable`（持久化，屏幕旋转 / 配置变更可恢复）实现。
+
+示例：
+
+按钮的高亮状态、单个卡片的展开 / 折叠、输入框的临时本地文本（无需提交 / 共享），比如一个独立的「收藏按钮」：
+
+```kotlin
+@Composable
+fun CollectButton() {
+    // 局部状态：仅当前按钮使用，记录是否已收藏
+    val isCollected by remember { mutableStateOf(false) }
+    IconButton(onClick = { isCollected = !isCollected }) {
+        Icon(
+            imageVector = if (isCollected) Icons.Filled.Star else Icons.Outlined.Star,
+            tint = if (isCollected) Color.Yellow else Color.Gray,
+            contentDescription = "收藏"
+        )
+    }
+}
+```
+
+**为什么不放在高层 / VM**：完全无共享需求，过度提升会增加代码冗余，违背「状态最小作用域」原则。
+
+#### 2. 状态存在**更高层的 Composable 节点中**（跨子组件的组合状态）
+
+状态需要被**当前高层 Composable 的多个子 Composable 共享**，生命周期和高层组件绑定，**无跨页面 / 导航的需求**。
+
+作用域覆盖所有子组件，遵循**单向数据流**：高层持有状态（唯一数据源），子组件通过**参数接收状态**、通过**回调函数更新状态**，子组件自身无状态（纯 UI 组件）；仍用`remember/rememberSaveable`（属于 Compose 组合树内管理）。
+
+示例：
+
+登录页面（高层`LoginScreen`）持有「用户名 / 密码」状态，共享给子组件「用户名输入框、密码输入框、登录按钮」（按钮需要判断用户名 / 密码是否为空）：
+
+```kotlin
+// 高层Composable：登录页面，持有共享状态
+@Composable
+fun LoginScreen() {
+    val userName by remember { mutableStateOf("") }
+    val pwd by remember { mutableStateOf("") }
+    // 子组件1：用户名输入框（仅接收状态+更新回调）
+    UserNameInput(userName = userName, onUserNameChange = { userName = it })
+    // 子组件2：密码输入框（同理）
+    PwdInput(pwd = pwd, onPwdChange = { pwd = it })
+    // 子组件3：登录按钮（接收状态判断是否可点击）
+    LoginButton(canLogin = userName.isNotBlank() && pwd.isNotBlank()) {
+        // 登录点击逻辑
+    }
+}
+
+// 子Composable：纯UI，无状态
+@Composable
+fun UserNameInput(userName: String, onUserNameChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = userName,
+        onValueChange = onUserNameChange,
+        label = { Text("用户名") }
+    )
+}
+```
+
+避免多个子组件各自持有状态导致的**状态不一致**，高层统一管理，子组件可复用（比如其他页面也能调用`UserNameInput`，只需传不同的状态 / 回调）。
+
+#### 3. 状态存在**ViewModel 中**（页面级 / 跨生命周期的业务状态）
+
+满足以下任一条件即可，也是官方最推荐的**业务状态管理方式**：
+
+1. 状态需要**跨配置变更**（如屏幕旋转、分屏，Compose 重组但 ViewModel 不销毁）；
+2. 状态和**业务逻辑绑定**（如网络请求、数据库操作、数据解析）；
+3. 状态需要**跨页面导航保留**（如从列表页到详情页，返回后列表的筛选状态不变）；
+4. 状态需要被**多个无关的 Composable 共享**（非父子关系）。
+
+##### 核心特点
+
+- ViewModel 的生命周期和**页面（Activity/Fragment/NavBackStackEntry）** 绑定，不受 Compose 重组影响；
+- 持有**业务逻辑**，实现**UI 与业务解耦**（Compose 仅做 UI 展示，不处理逻辑）；
+- 用`StateFlow/LiveData`（推荐 StateFlow）保存状态，Compose 通过`collectAsStateWithLifecycle`观察状态变化；
+- 用`viewModelScope`处理异步逻辑（协程随 ViewModel 销毁自动取消，避免内存泄漏）。
+
+##### 实际示例
+
+用户信息页面，需要网络请求获取用户数据，且屏幕旋转时数据不丢失：
+
+```kotlin
+// 第一步：ViewModel层——持有状态+业务逻辑，和UI完全解耦
+class UserInfoViewModel : ViewModel() {
+    // 私有可变状态，外部仅可观察
+    private val _userInfo = MutableStateFlow<UserInfo?>(null)
+    // 公共只读状态，Compose观察
+    val userInfo: StateFlow<UserInfo?> = _userInfo.asStateFlow()
+
+    // 业务逻辑：网络请求获取用户信息
+    fun fetchUserInfo(userId: String) {
+        viewModelScope.launch {
+            // 模拟网络请求（实际调用Repository层）
+            val data = UserRepository.getUserInfo(userId)
+            _userInfo.emit(data)
+        }
+    }
+}
+
+// 第二步：Compose UI层——仅观察状态+展示UI，无业务逻辑
+@Composable
+fun UserInfoScreen(userId: String) {
+    // 获取ViewModel，自动关联页面生命周期
+    val viewModel: UserInfoViewModel = viewModel()
+    // 观察StateFlow状态，跟随生命周期感知
+    val userInfo by viewModel.userInfo.collectAsStateWithLifecycle()
+
+    // 页面首次加载时请求数据（LaunchedEffect：仅执行一次）
+    LaunchedEffect(Unit) {
+        viewModel.fetchUserInfo(userId)
+    }
+
+    // 根据状态展示不同UI
+    when (userInfo) {
+        null -> CircularProgressIndicator() // 加载中
+        else -> Column(Modifier.padding(16.dp)) {
+            Text("姓名：${userInfo.name}", fontSize = 18.sp)
+            Text("手机号：${userInfo.phone}", fontSize = 16.sp, color = Color.Gray)
+        }
+    }
+}
+```
+
+**为什么不放在 Compose 中**：如果把用户信息状态放在高层 Composable，屏幕旋转时 Compose 重组，状态会丢失，需要重新请求网络；且业务逻辑和 UI 耦合，代码难以测试和维护。
+
+
+
+1. **单向数据流**：无论状态放哪，都遵循「UI 触发事件 → 事件修改状态 → 状态驱动 UI 更新」，禁止子组件直接修改高层 / VM 的状态，只能通过回调 / 方法触发，保证状态变更可追溯；
+2. **状态最小化**：只把必要的状态提升到高层 / VM，不要过度提升（比如局部的按钮高亮状态），减少状态的作用域，降低维护成本；
+3. **UI 无状态化**：尽可能让 Compose 组件成为「纯 UI 组件」（仅接收参数 + 回调），状态和业务逻辑抽离到高层 / VM，提升组件的复用性。
