@@ -69,6 +69,41 @@ fun LaunchedEffectUsage() {
 
 
 
+入参keys，是控制副作用重启的核心参数，需遵循以下规则：
+
+1. 副作用代码块中使用的所有可变 / 不可变变量，均需作为 Effect Keys 传入，确保变量变化时副作用能及时重启；
+
+   代码示例（正确 / 错误对比）：
+
+   ```kotlin
+   // 正确：count作为Key，变化时副作用重启
+   LaunchedEffect(key1 = count.value) {
+       println("count 变化：${count.value}")
+   }
+   
+   // 错误：count未作为Key，变化时副作用不重启，打印旧值
+   LaunchedEffect(key1 = true) {
+       println("count 变化：${count.value}")
+   }
+   ```
+
+   
+
+2. 使用常量（如 true、Unit）作为 Effect Keys 时，副作用仅在进入组合时执行一次，后续变量变化不会触发重启；
+
+   代码示例：
+
+   ```kotlin
+   LaunchedEffect(key1 = Unit) {
+       delay(1000)
+       println("仅执行一次：${count.value}")
+   }
+   ```
+
+3. 若变量变化无需重启副作用，需通过 rememberUpdatedState 包装变量，不将其作为 Effect Keys 传入。
+
+
+
 ### 2. DisposableEffect
 
 - 作用：处理需要显式清理的副作用操作；
@@ -78,16 +113,19 @@ fun LaunchedEffectUsage() {
 ```kotlin
 @Composable
 fun DisposableEffectUsage() {
+    // 获取当前上下文的 LocalLifecycleOwner
     val lifecycleOwner = LocalLifecycleOwner.current
+    // 获取对应的 Lifecycle（生命周期对象）
+    val lifecycle = lifecycleOwner.lifecycle
     
     DisposableEffect(key1 = lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             println("生命周期变化：$event")
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
+        lifecycle.addObserver(observer)
         
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+            lifecycle.removeObserver(observer)
             println("移除生命周期监听器")
         }
     }
@@ -184,6 +222,10 @@ fun RememberCoroutineScopeUsage() {
 @Composable
 fun RememberUpdatedStateUsage(onTimeout: () -> Unit) {
     val latestOnTimeout by rememberUpdatedState(newValue = onTimeout)
+    //等价
+  	val lastOnTimeout2 by remember { mutableStateOf(onTimeout) }.apply {
+            value = onTimeout
+        }
 
     LaunchedEffect(key1 = true) {
         delay(3000)
@@ -217,7 +259,29 @@ fun RememberUpdatedStateCaller() {
 
 
 
-### 3. produceState
+其实，`rememberUpdatedState(value)`等价于`remember { mutableStateOf(onTimeout) }.apply {value = onTimeout}` ：
+
+首次组合
+
+1. 执行函数，调用 `remember { ... }` → 创建 State，值 = 入参 onTimeout；
+
+2. 执行 `apply` → 值 = 入参 onTimeout；
+
+最终值：入参 onTimeout
+
+
+
+重组（onTimeout 更新）
+
+1. 执行函数，调用 `remember { ... }` → 复用旧 State（不创建新的）；
+
+2. 执行 `apply` → 值 = 新 onTimeout；
+
+最终值：新 onTimeout。
+
+
+
+### 3. ~~produceState~~
 
 - 作用：将非 Compose 状态（如 Flow、LiveData、网络请求结果）转换为 Compose 可感知的 State 对象；
 - 核心特性：基于协程执行生产者逻辑，进入组合时启动，离开组合时取消；返回的 State 值重复时不会触发重组；
@@ -300,6 +364,8 @@ fun UserInfoScreen(
 
   `collectAsStateWithLifecycle`：绑定页面生命周期（默认在 `STARTED` 状态收集，`STOPPED` 状态暂停），是官方推荐的 Compose 收集 Flow/StateFlow 的方式。
 
+为了避免复杂性，和规范性，统一要求使用ViewModel写法。
+
 
 
 ### 4. snapshotFlow
@@ -373,45 +439,6 @@ fun DerivedStateOfUsage() {
 
 
 
-
-
-## 四、Effect Keys 核心规则
-
-Effect Keys 是控制副作用重启的核心参数，需遵循以下规则：
-
-1. 副作用代码块中使用的所有可变 / 不可变变量，均需作为 Effect Keys 传入，确保变量变化时副作用能及时重启；
-
-   代码示例（正确 / 错误对比）：
-
-   ```kotlin
-   // 正确：count作为Key，变化时副作用重启
-   LaunchedEffect(key1 = count.value) {
-       println("count 变化：${count.value}")
-   }
-   
-   // 错误：count未作为Key，变化时副作用不重启，打印旧值
-   LaunchedEffect(key1 = true) {
-       println("count 变化：${count.value}")
-   }
-   ```
-
-   
-
-2. 使用常量（如 true、Unit）作为 Effect Keys 时，副作用仅在进入组合时执行一次，后续变量变化不会触发重启；
-
-   代码示例：
-
-   ```kotlin
-   LaunchedEffect(key1 = Unit) {
-       delay(1000)
-       println("仅执行一次：${count.value}")
-   }
-   ```
-
-3. 若变量变化无需重启副作用，需通过 rememberUpdatedState 包装变量，不将其作为 Effect Keys 传入。
-
-   
-
 ## 四、使用误区
 
 1. 滥用 derivedStateOf：简单的状态拼接（如姓名 + 年龄）无需使用，该 API 仅适用于高频 State 低频率更新 UI 的场景，滥用会增加性能开销；
@@ -459,8 +486,6 @@ LaunchedEffect(true) {
 
 
 
-
-
 ## 总结
 
 1. Compose 副作用需通过专属 API 管理，核心目标是绑定组合生命周期、精准控制重启时机、显式清理资源，避免逻辑异常和内存泄漏；
@@ -469,6 +494,30 @@ LaunchedEffect(true) {
 
 
 
-TODOList:
+## CompositionLocal
 
-LocalLifecycleOwner
+```kotlin
+@Composable
+fun CommonUsage() {
+    // 1. 获取当前上下文（最常用的CompositionLocal之一）
+    val context = LocalContext.current
+    // 2. 获取生命周期持有者（你之前问的LocalLifecycleOwner）
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // 3. 获取屏幕密度/尺寸相关配置
+    val density = LocalDensity.current
+    // 4. 获取屏幕方向、语言等设备配置
+    val configuration = LocalConfiguration.current
+    // 5. 获取Compose的主题配置（比如Material3的颜色/字体）
+    val colors = LocalColors.current
+    val typography = LocalTypography.current
+
+    // 实际业务场景：比如用LocalContext弹Toast
+    Button(onClick = {
+        Toast.makeText(context, "使用LocalContext", Toast.LENGTH_SHORT).show()
+    }) {
+        Text("点击弹Toast")
+    }
+}
+```
+
+`CompositionLocal` 是 Compose 开发中**一定会用到**的核心机制 —— 只不过大部分时候你用的是 Compose 内置的 `LocalXXX` 封装（比如 `LocalContext`/`LocalLifecycleOwner`），而非手动自定义 `CompositionLocal`。
