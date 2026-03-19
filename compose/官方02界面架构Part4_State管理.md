@@ -1,12 +1,132 @@
-**Jetpack Compose State概述**
 
-应用中的**状态（State）**，指任何可以随时间变化的值，这个定义覆盖了从 Room 数据库到类中变量的所有场景。所有 Android 应用都需要向用户展示状态，典型示例包括：网络异常时弹出的 Snackbar、博客文章及评论内容、用户点击按钮时播放的涟漪动画、用户在图片上绘制的贴纸等。
 
-### 第一部分：State & Composition（状态与组合）
+Compose 是声明式 UI 框架，其核心规则是：**UI = f(State)**（UI 是状态的函数）。
 
-Compose 是声明式 UI 框架，其核心规则是：**UI = f(State)**（UI 是状态的函数）。只有当状态发生变化且被 Compose 观察到，才会触发重组（Recomposition）来更新 UI；任何脱离可观察状态的 UI 变更，都无法在 Compose 中生效。
+1. **Composition（组合）**：Jetpack Compose 执行可组合项（`@Composable`函数）时，构建出的 UI 描述树，包含所有 UI 元素的属性、布局和交互逻辑。
+2. **Initial composition（初始组合）**：首次调用可组合项，生成初始 Composition 的过程，是 UI 首次渲染的基础。
+3. **Recomposition（重组）**：当可观察状态发生变化时，Compose 会**增量式**重新执行受该状态影响的可组合项，更新 Composition 的过程（仅更新状态变化相关的 UI 部分，而非全部重新渲染）。
+4. 应用中的**状态（State）**:  指任何可以随时间变化的值，典型示例包括：网络异常时弹出的 Snackbar、博客文章及评论内容、用户点击按钮时播放的涟漪动画、用户在图片上绘制的贴纸等。
 
-示例:
+
+
+## 第一部分：State & Composition（状态与组合）
+
+### 1. mutableStateOf
+
+**定义：创建一个持有普通数据的`MutableState`容器，值发生变化时会被 Compose 感知，并自动触发依赖该值的可组合项重组；**
+
+* **三种等价的状态声明方式**
+
+Compose 提供了三种语法糖，用于声明`MutableState`对象，功能完全等价，可根据代码可读性选择：
+
+```kotlin
+//基础赋值方式
+val mutableState = remember { mutableStateOf(default) }
+
+//属性委托方式（推荐，最简洁）
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+var value by remember { mutableStateOf(default) }
+
+//解构声明方式
+val (value, setValue) = remember { mutableStateOf(default) }
+```
+
+
+
+* **注意事项**
+
+**禁止使用不可观察的可变对象作为状态**，例如`ArrayList<T>`、`mutableListOf()`、自定义可变数据类。这类对象的内部变化无法被 Compose 观察到，不会触发重组，会导致 UI 显示过期 / 错误数据。
+
+**推荐用法**：使用`State<List<T>>` + 不可变的`listOf()`，每次更新都传入新的 List 实例，通过修改`MutableState`的`value`触发重组。
+
+```kotlin
+// 正确写法
+val listState by remember { mutableStateOf(listOf<String>()) }
+// 更新方式：创建新的List实例，修改MutableState的value，触发重组
+listState = listState + "新元素"
+```
+
+另外， `stateOf()` 无观察能力（即使强行修改也无重组）。
+
+
+
+> `MutableState<T>` 的可观察能力，由**Compose 编译器插件 + 运行时快照系统**共同实现：
+>
+> 1. 编译期：编译器插件会对`value`的`get/set`方法进行插桩处理
+> 2. 读操作：当可组合项读取`value`时，会自动将该可组合项注册为这个状态的观察者
+> 3. 写操作：当`value`被修改时，会通知所有注册的观察者，调度对应可组合项触发重组
+>
+> 接口仅定义了状态的读写契约，核心的观察逻辑在运行时的实现类（如`SnapshotMutableState`）中，因此接口源码中看不到相关逻辑。
+
+
+
+### 2. remember
+
+**定义：让数据 / 对象跨 Compose 重组保留，组件移除时自动回收。
+
+- `remember` 可以将对象存储在内存中，初始组合时计算的值会被存入组合中，重组时会直接返回已存储的值，支持存储可变与不可变对象。
+
+- 状态应该声明在**使用它的最低节点**，一方面可以避免不必要的重组（只有使用该状态的子节点会触发重组），另一方面遵循状态就近原则，提升代码可读性与可维护性。
+
+- `remember` 存储的对象与调用它的可组合项生命周期强绑定：当调用`remember`的可组合项从 Composition 中移除时，存储的对象会被回收（被遗忘）。
+
+- `remember { mutableStateOf("") }`：让字符串既具备 “变化监听 + 触发重组” 能力，又能跨重组保留状态，组件移除时自动回收该状态容器。
+
+**带 key 的 remember：控制缓存失效时机**
+
+​	默认情况下，`remember` 仅在初始组合时执行一次计算，后续重组直接返回缓存值。当传入`key`（一个或多个）参数时，**任何一个 key 发生变化，`remember`都会失效缓存，重新执行计算 lambda**。
+
+这个特性适用于：
+
+- 初始化成本高的对象（如`ShaderBrush`），仅当依赖参数变化时才重新创建
+- 状态持有者实例，仅当核心配置（如窗口尺寸）变化时才重新初始化
+
+**示例 1：依赖资源的高成本对象初始化**
+
+```kotlin
+@Composable
+private fun BackgroundBanner(
+    @DrawableRes avatarRes: Int,
+    modifier: Modifier = Modifier,
+    res: Resources = LocalContext.current.resources
+) {
+    // 仅当avatarRes变化时，才重新创建ShaderBrush
+    val brush = remember(key1 = avatarRes) {
+        ShaderBrush(
+            BitmapShader(
+                ImageBitmap.imageResource(res, avatarRes).asAndroidBitmap(),
+                Shader.TileMode.REPEAT,
+                Shader.TileMode.REPEAT
+            )
+        )
+    }
+    Box(modifier = modifier.background(brush)) {
+        /* 内容 */
+    }
+}
+```
+
+**示例 2：状态持有者的动态更新**
+
+```kotlin
+@Composable
+private fun rememberMyAppState(windowSizeClass: WindowSizeClass): MyAppState {
+    // 仅当windowSizeClass变化时，才重新创建MyAppState实例
+    return remember(windowSizeClass) {
+        MyAppState(windowSizeClass)
+    }
+}
+
+@Stable
+class MyAppState(private val windowSizeClass: WindowSizeClass) {
+    /* 业务逻辑与状态管理 */
+}
+```
+
+只有当状态发生变化且被 Compose 观察到，才会触发重组（Recomposition）来更新 UI；任何脱离可观察状态的 UI 变更，都无法在 Compose 中生效。
+
+比如TextField，不会自己更新的示例:
 
 ```kotlin
 ///////错误做法
@@ -62,139 +182,11 @@ private fun HelloContent() {
 3. 用户输入时，`onValueChange` 回调更新`name`的值 → 触发 Compose 重组；
 4. 重组时，`OutlinedTextField` 读取更新后的`name`值 → UI 同步显示输入内容。
 
-### 核心术语定义
-
-1. **Composition（组合）**：Jetpack Compose 执行可组合项（`@Composable`函数）时，构建出的 UI 描述树，包含所有 UI 元素的属性、布局和交互逻辑。
-2. **Initial composition（初始组合）**：首次调用可组合项，生成初始 Composition 的过程，是 UI 首次渲染的基础。
-3. **Recomposition（重组）**：当可观察状态发生变化时，Compose 会**增量式**重新执行受该状态影响的可组合项，更新 Composition 的过程（仅更新状态变化相关的 UI 部分，而非全部重新渲染）。
 
 
+### 3. rememberSaveable
 
-### 第二部分：State & remember & rememberSaveable
-
-#### 1. mutableStateOf
-
-`mutableStateOf` 会创建一个可观察的`MutableState<T>`类型，它是与 Compose 运行时深度集成的可观察类型，接口定义如下：
-
-```kotlin
-interface MutableState<T> : State<T> {
-    override var value: T
-}
-```
-
-`MutableState<T>` 的可观察能力，由**Compose 编译器插件 + 运行时快照系统**共同实现：
-
-1. 编译期：编译器插件会对`value`的`get/set`方法进行插桩处理
-2. 读操作：当可组合项读取`value`时，会自动将该可组合项注册为这个状态的观察者
-3. 写操作：当`value`被修改时，会通知所有注册的观察者，调度对应可组合项触发重组
-
-接口仅定义了状态的读写契约，核心的观察逻辑在运行时的实现类（如`SnapshotMutableState`）中，因此接口源码中看不到相关逻辑。
-
-##### 三种等价的状态声明方式
-
-Compose 提供了三种语法糖，用于声明`MutableState`对象，功能完全等价，可根据代码可读性选择：
-
-1. 基础赋值方式
-
-   ```kotlin
-   val mutableState = remember { mutableStateOf(default) }
-   ```
-
-2. 属性委托方式（推荐，最简洁）
-
-   ```kotlin
-   import androidx.compose.runtime.getValue
-   import androidx.compose.runtime.setValue
-   var value by remember { mutableStateOf(default) }
-   ```
-
-3. 解构声明方式
-
-   ```kotlin
-   val (value, setValue) = remember { mutableStateOf(default) }
-   ```
-
-##### 状态使用的核心注意事项
-
-**禁止使用不可观察的可变对象作为状态**，例如`ArrayList<T>`、`mutableListOf()`、自定义可变数据类。这类对象的内部变化无法被 Compose 观察到，不会触发重组，会导致 UI 显示过期 / 错误数据。
-
-**推荐用法**：使用`State<List<T>>` + 不可变的`listOf()`，每次更新都传入新的 List 实例，通过修改`MutableState`的`value`触发重组。
-
-```kotlin
-// 正确写法
-val listState by remember { mutableStateOf(listOf<String>()) }
-// 更新方式：创建新的List实例，修改MutableState的value，触发重组
-listState = listState + "新元素"
-```
-
-另外， `stateOf()` 无观察能力（即使强行修改也无重组）。
-
-
-
-#### 2. remember
-
-- `remember` 可以将对象存储在内存中，初始组合时计算的值会被存入 Composition，重组时会直接返回已存储的值，支持存储可变与不可变对象。
-
-- 状态应该声明在**使用它的最低节点**，一方面可以避免不必要的重组（只有使用该状态的子节点会触发重组），另一方面遵循状态就近原则，提升代码可读性与可维护性。
-
-- `remember` 存储的对象与调用它的可组合项生命周期强绑定：当调用`remember`的可组合项从 Composition 中移除时，存储的对象会被回收（被遗忘）。
-
-**带 key 的 remember：控制缓存失效时机**
-
-默认情况下，`remember` 仅在初始组合时执行一次计算，后续重组直接返回缓存值。当传入`key`（一个或多个）参数时，**任何一个 key 发生变化，`remember`都会失效缓存，重新执行计算 lambda**。
-
-这个特性适用于：
-
-- 初始化成本高的对象（如`ShaderBrush`），仅当依赖参数变化时才重新创建
-- 状态持有者实例，仅当核心配置（如窗口尺寸）变化时才重新初始化
-
-**示例 1：依赖资源的高成本对象初始化**
-
-```kotlin
-@Composable
-private fun BackgroundBanner(
-    @DrawableRes avatarRes: Int,
-    modifier: Modifier = Modifier,
-    res: Resources = LocalContext.current.resources
-) {
-    // 仅当avatarRes变化时，才重新创建ShaderBrush
-    val brush = remember(key1 = avatarRes) {
-        ShaderBrush(
-            BitmapShader(
-                ImageBitmap.imageResource(res, avatarRes).asAndroidBitmap(),
-                Shader.TileMode.REPEAT,
-                Shader.TileMode.REPEAT
-            )
-        )
-    }
-    Box(modifier = modifier.background(brush)) {
-        /* 内容 */
-    }
-}
-```
-
-**示例 2：状态持有者的动态更新**
-
-```kotlin
-@Composable
-private fun rememberMyAppState(windowSizeClass: WindowSizeClass): MyAppState {
-    // 仅当windowSizeClass变化时，才重新创建MyAppState实例
-    return remember(windowSizeClass) {
-        MyAppState(windowSizeClass)
-    }
-}
-
-@Stable
-class MyAppState(private val windowSizeClass: WindowSizeClass) {
-    /* 业务逻辑与状态管理 */
-}
-```
-
-
-
-#### 3. rememberSaveable
-
-##### 状态存储方式
+### 状态存储方式
 
 `rememberSaveable` 原生支持所有可存入 Bundle 的数据类型，对于自定义复杂类型，有三种实现状态持久化的方案：
 
@@ -270,7 +262,7 @@ fun CityScreen() {
 }
 ```
 
-##### 带 inputs 的 rememberSaveable：控制缓存失效
+#### 带 inputs 的 rememberSaveable：控制缓存失效
 
 `rememberSaveable` 用`inputs`参数实现和`remember`的`key`参数完全一致的能力：当任何一个`inputs`参数发生变化时，会失效缓存，重新执行计算 lambda。
 
@@ -291,7 +283,7 @@ var userTypedQuery by rememberSaveable(
 
 
 
-##### 比较remember & rememberSaveable & ViewModel
+#### 比较remember & rememberSaveable & ViewModel
 
 | 特性                                          | remember               | rememberSaveable                   | ViewModel                                      |
 | --------------------------------------------- | ---------------------- | ---------------------------------- | ---------------------------------------------- |
@@ -302,7 +294,7 @@ var userTypedQuery by rememberSaveable(
 | 状态存储位置                                  | Compose 组合树         | Activity 所属 Bundle               | 应用进程内存（堆内存）                         |
 | 适用状态范围                                  | 单个可组合项 / 局部 UI | 单个可组合项 / 局部 UI（需持久化） | 跨 UI 组件（如多个 Composable / 页面）共享状态 |
 
-###### 跨系统发起的 Activity 重建 / 进程死亡保留状态
+##### 跨系统发起的 Activity 重建 / 进程死亡保留状态
 
 - **默认行为（❌）**：ViewModel 的核心生命周期是 “从首次创建到 Activity/Fragment 彻底销毁（用户主动关闭）”，当系统因内存不足杀死进程、或强制重建 Activity 时，ViewModel 实例会被销毁，其内部状态也会丢失。
 
@@ -319,13 +311,13 @@ var userTypedQuery by rememberSaveable(
   }
   ```
 
-###### 底层实现与生命周期
+##### 底层实现与生命周期
 
 - ViewModel 由 `ViewModelProvider` 创建，存储在 `ViewModelStore` 中（Activity/Fragment 作为 `ViewModelStoreOwner` 持有）；
 - 配置变更时，Activity/Fragment 重建，但 `ViewModelStore` 会被系统保留，因此 ViewModel 实例不变；
 - 与 Compose 无关：ViewModel 的生命周期不依赖 Compose 组合树，即使 Composable 被移除 / 重组，ViewModel 仍会保留（直到宿主销毁）。
 
-###### 适用场景差异
+##### 适用场景差异
 
 - `remember`：仅用于 Composable 内部、无需跨配置变更的临时状态（如单个按钮的点击状态）, 当前节点的临时缓存，仅跨重组保留；
 - `rememberSaveable`：仅用于 Composable 内部、底层复用 Bundle，支持配置变更 / 进程死亡恢复（如输入框文本、单选按钮选中状态）；
@@ -333,11 +325,11 @@ var userTypedQuery by rememberSaveable(
 
 
 
-### 第三部分：其他支持的状态类型
+## 第二部分：其他支持的状态类型
 
 Compose 不强制要求必须使用`MutableState<T>`持有状态，它支持所有主流的可观察类型，但**核心规则是：在 Compose 中读取其他可观察类型前，必须先转为`State<T>`，才能让 Compose 在状态变化时自动触发重组**。
 
-#### 1. Flow 转 State
+### 1. Flow 转 State
 
 Compose 提供了两个核心 API，用于将 Flow 转为 State：
 
@@ -370,7 +362,7 @@ fun UserScreen(viewModel: UserViewModel) {
 
 - 特性：无生命周期感知，只要可组合项处于 Composition 中就会持续收集 Flow，适合跨平台的 Compose 项目，无需额外依赖。
 
-#### 2. LiveData 转 State
+### 2. LiveData 转 State
 
 通过`observeAsState()` API，可将 LiveData 转为 Compose State，自动观察 LiveData 的数值变化。
 
@@ -398,7 +390,7 @@ fun CounterScreen(viewModel: CounterViewModel) {
 }
 ```
 
-#### 3. 其他支持的类型
+### 3. 其他支持的类型
 
 Compose 还支持 RxJava2/RxJava3 的响应式流，通过`subscribeAsState()` API 转为 State，需添加对应的`runtime-rxjava2`/`runtime-rxjava3`依赖，用法与上述 API 一致。
 
@@ -446,7 +438,7 @@ fun LocationScreen(locationManager: LocationManager) {
 
 
 
-### 第四部分：有状态和无状态
+## 第三部分：有状态和无状态
 
 **核心定义**
 
@@ -538,7 +530,7 @@ fun InputScreen() {
 
 
 
-### 第五部分：状态提升 & 状态容器
+## 第四部分：状态提升 & 状态容器
 
 https://developer.android.google.cn/develop/ui/compose/state-hoisting
 
@@ -546,7 +538,7 @@ https://developer.android.google.cn/develop/ui/compose/state-hoisting
 
 通过「分层存储」实现**状态的最小作用域、单向数据流、UI 与业务解耦**。
 
-#### 1. 状态存在**单个 Composable 节点内部**（局部状态）
+### 1. 状态存在**单个 Composable 节点内部**（局部状态）
 
 状态**仅当前 Composable 使用**，无任何子 / 父组件依赖，生命周期和该 Composable 完全绑定（组件销毁，状态消失）。
 
@@ -573,7 +565,7 @@ fun CollectButton() {
 
 **为什么不放在高层 / VM**：完全无共享需求，过度提升会增加代码冗余，违背「状态最小作用域」原则。
 
-#### 2. 状态存在**更高层的 Composable 节点中**（跨子组件的组合状态）
+### 2. 状态存在**更高层的 Composable 节点中**（跨子组件的组合状态）
 
 状态需要被**当前高层 Composable 的多个子 Composable 共享**，生命周期和高层组件绑定，**无跨页面 / 导航的需求**。
 
@@ -612,7 +604,7 @@ fun UserNameInput(userName: String, onUserNameChange: (String) -> Unit) {
 
 避免多个子组件各自持有状态导致的**状态不一致**，高层统一管理，子组件可复用（比如其他页面也能调用`UserNameInput`，只需传不同的状态 / 回调）。
 
-#### 3. 状态存在**ViewModel 中**（页面级 / 跨生命周期的业务状态）
+### 3. 状态存在**ViewModel 中**（页面级 / 跨生命周期的业务状态）
 
 满足以下任一条件即可，也是官方最推荐的**业务状态管理方式**：
 
@@ -621,14 +613,14 @@ fun UserNameInput(userName: String, onUserNameChange: (String) -> Unit) {
 3. 状态需要**跨页面导航保留**（如从列表页到详情页，返回后列表的筛选状态不变）；
 4. 状态需要被**多个无关的 Composable 共享**（非父子关系）。
 
-##### 核心特点
+#### 核心特点
 
 - ViewModel 的生命周期和**页面（Activity/Fragment/NavBackStackEntry）** 绑定，不受 Compose 重组影响；
 - 持有**业务逻辑**，实现**UI 与业务解耦**（Compose 仅做 UI 展示，不处理逻辑）；
 - 用`StateFlow/LiveData`（推荐 StateFlow）保存状态，Compose 通过`collectAsStateWithLifecycle`观察状态变化；
 - 用`viewModelScope`处理异步逻辑（协程随 ViewModel 销毁自动取消，避免内存泄漏）。
 
-##### 实际示例
+#### 实际示例
 
 用户信息页面，需要网络请求获取用户数据，且屏幕旋转时数据不丢失：
 
