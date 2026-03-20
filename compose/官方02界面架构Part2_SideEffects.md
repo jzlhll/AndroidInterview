@@ -492,32 +492,3 @@ LaunchedEffect(true) {
 2. 协程类副作用优先使用 LaunchedEffect（组合内）或 rememberCoroutineScope（用户事件），资源清理类副作用使用 DisposableEffect，状态转换类使用 produceState/snapshotFlow；
 3. Effect Keys 配置需遵循 “使用即传入” 原则，无需重启的变量通过 rememberUpdatedState 包装，平衡功能正确性与性能。
 
-
-
-## CompositionLocal
-
-```kotlin
-@Composable
-fun CommonUsage() {
-    // 1. 获取当前上下文（最常用的CompositionLocal之一）
-    val context = LocalContext.current
-    // 2. 获取生命周期持有者（你之前问的LocalLifecycleOwner）
-    val lifecycleOwner = LocalLifecycleOwner.current
-    // 3. 获取屏幕密度/尺寸相关配置
-    val density = LocalDensity.current
-    // 4. 获取屏幕方向、语言等设备配置
-    val configuration = LocalConfiguration.current
-    // 5. 获取Compose的主题配置（比如Material3的颜色/字体）
-    val colors = LocalColors.current
-    val typography = LocalTypography.current
-
-    // 实际业务场景：比如用LocalContext弹Toast
-    Button(onClick = {
-        Toast.makeText(context, "使用LocalContext", Toast.LENGTH_SHORT).show()
-    }) {
-        Text("点击弹Toast")
-    }
-}
-```
-
-`CompositionLocal` 是 Compose 开发中**一定会用到**的核心机制 —— 只不过大部分时候你用的是 Compose 内置的 `LocalXXX` 封装（比如 `LocalContext`/`LocalLifecycleOwner`），而非手动自定义 `CompositionLocal`。
