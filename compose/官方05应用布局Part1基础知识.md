@@ -60,3 +60,62 @@ fun ArtistAvatar(artist: Artist) {
 ```
 
 todo补图。
+
+还可以通过设置Row的子属性，调整位置:
+
+```kotlin
+Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.End
+  ) {
+      Image(bitmap = artist.image, contentDescription = "Artist image")
+      Column { /*...*/ }
+  }
+```
+
+Compose 可以有效地处理嵌套布局，不用害怕嵌套！
+
+三、布局模型
+
+父节点会在其子节点之前进行测量，但会在其子节点的尺寸和放置位置确定之后再对自身进行调整。compose通过一次测量子项，避免多次测量O(n2)的性能问题。
+
+后续章节：Compose固有特性测量。
+
+四、修饰符（Modifiers）
+
+```kotlin
+@Composable
+fun ArtistCardModifiers(
+    artist: Artist,
+    onClick: () -> Unit
+) {
+    val padding = 16.dp
+    Column(
+        Modifier
+            .clickable(onClick = onClick)
+            .padding(padding)
+            .fillMaxWidth()
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) { /*...*/ }
+        Spacer(Modifier.size(padding))
+        Card(
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        ) { /*...*/ }
+    }
+}
+```
+
+在上面的代码中，结合使用了不同的修饰符函数。
+
+- `clickable` 使可组合项响应用户输入，并显示涟漪。
+- `padding` 在元素周围留出空间。
+- `fillMaxWidth` 使可组合项填充其父项为它提供的最大宽度。
+- `size()` 指定元素的首选宽度和高度。
+
+
+
+五、自适应布局
+
+考虑不同屏幕尺寸，根据屏幕配置调整布局。
+
+约束条件：BoxWithConstraints。
