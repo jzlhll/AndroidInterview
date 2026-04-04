@@ -31,6 +31,7 @@ todo补图。
 比如：
 
 ```kotlin
+//1. Column
 @Composable
 fun ArtistCardColumn() {
     Column { //追加了Column垂直布局，就让他们竖向往下排列显示；
@@ -39,6 +40,7 @@ fun ArtistCardColumn() {
     }
 }
 
+//2. Row + Colunm
 @Composable
 fun ArtistCardRow(artist: Artist) {
     Row(verticalAlignment = Alignment.CenterVertically) { //使用Row，就可以水平的排列显示；
@@ -50,6 +52,7 @@ fun ArtistCardRow(artist: Artist) {
     }
 }
 
+//3. Box
 @Composable
 fun ArtistAvatar(artist: Artist) {
     Box { //使用 Box 可将元素放在其他元素上。Box 还支持为其包含的元素配置特定的对齐方式。
