@@ -9,9 +9,47 @@ Compose 是声明式 UI 框架，其核心规则是：**UI = f(State)**（UI 是
 
 
 
-## 第一部分：State & Composition（状态与组合）
+## 一、State & Composition（状态与组合）
 
-### 1. mutableStateOf
+### 
+
+### 1. 最简化认知
+
+|         用法组合          |       适用场景        |         核心作用         |
+| :-----------------------: | :-------------------: | :----------------------: |
+| remember + mutableStateOf |   数据变化需更新 UI   |  跨重组保留 + 触发重组   |
+|     单独使用 remember     | 仅保存对象，不更新 UI | 仅跨重组保留，无观察需求 |
+
+#### 单独使用 remember（无需搭配 mutableStateOf）
+
+- 场景 1：存储不可变对象
+
+  （静态资源、画笔，初始化后不修改）
+
+  ```kotlin
+  // 仅缓存画笔实例，无需监听变化
+  val brush = remember(key1 = avatarRes) { ShaderBrush(...) }
+  ```
+
+- 场景 2：存储**高成本初始化对象**（自定义状态类、复杂工具类，依赖 key 变化重建）
+
+- 场景 3：存储无需 UI 响应的对象（临时工具、局部变量，变化不刷新 UI）
+
+  ```kotlin
+  // 缓存随机工具类，仅保留实例，不触发UI更新
+  val random = remember { Random() }
+  ```
+
+#### 必须组合：remember + mutableStateOf（需要监听变化）
+
+- 场景：UI 交互状态（输入框、计数、开关，数据变化必须刷新 UI）
+
+  ```kotlin
+  // 输入框状态：变化触发UI重组，必须组合使用
+  var name by remember { mutableStateOf("") }
+  ```
+
+### 2. mutableStateOf
 
 **定义：创建一个持有普通数据的`MutableState`容器，值发生变化时会被 Compose 感知，并自动触发依赖该值的可组合项重组；**
 
@@ -20,18 +58,17 @@ Compose 是声明式 UI 框架，其核心规则是：**UI = f(State)**（UI 是
 Compose 提供了三种语法糖，用于声明`MutableState`对象，功能完全等价，可根据代码可读性选择：
 
 ```kotlin
-//基础赋值方式
+//方式1：基础赋值方式
 val mutableState = remember { mutableStateOf(default) }
 
-//属性委托方式（推荐，最简洁）
+//方式2：属性委托方式（推荐，最简洁）
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 var value by remember { mutableStateOf(default) }
 
-//解构声明方式
+//方式3：解构声明方式
 val (value, setValue) = remember { mutableStateOf(default) }
 ```
-
 
 
 * **注意事项**
@@ -61,9 +98,9 @@ listState = listState + "新元素"
 
 
 
-### 2. remember
+### 3. remember
 
-**定义：让数据 / 对象跨 Compose 重组保留，组件移除时自动回收。
+**定义**：让数据 / 对象跨 Compose 重组保留，组件移除时自动回收。
 
 - `remember` 可以将对象存储在内存中，初始组合时计算的值会被存入组合中，重组时会直接返回已存储的值，支持存储可变与不可变对象。
 
@@ -184,7 +221,7 @@ private fun HelloContent() {
 
 
 
-### 3. rememberSaveable
+### 4. rememberSaveable
 
 ### 状态存储方式
 
@@ -325,9 +362,11 @@ var userTypedQuery by rememberSaveable(
 
 
 
-## 第二部分：其他支持的状态类型
+## 二、其他支持的状态类型
 
 Compose 不强制要求必须使用`MutableState<T>`持有状态，它支持所有主流的可观察类型，但**核心规则是：在 Compose 中读取其他可观察类型前，必须先转为`State<T>`，才能让 Compose 在状态变化时自动触发重组**。
+
+重点掌握Flow和LiveData的使用。
 
 ### 1. Flow 转 State
 
@@ -438,7 +477,7 @@ fun LocationScreen(locationManager: LocationManager) {
 
 
 
-## 第三部分：有状态和无状态
+## 三、有状态和无状态
 
 **核心定义**
 
@@ -530,7 +569,7 @@ fun InputScreen() {
 
 
 
-## 第四部分：状态提升 & 状态容器
+## 四、状态提升 & 状态容器
 
 https://developer.android.google.cn/develop/ui/compose/state-hoisting
 
@@ -538,7 +577,7 @@ https://developer.android.google.cn/develop/ui/compose/state-hoisting
 
 通过「分层存储」实现**状态的最小作用域、单向数据流、UI 与业务解耦**。
 
-### 1. 状态存在**单个 Composable 节点内部**（局部状态）
+### 1. 状态存在单个 Composable 节点内部（局部状态）
 
 状态**仅当前 Composable 使用**，无任何子 / 父组件依赖，生命周期和该 Composable 完全绑定（组件销毁，状态消失）。
 
@@ -565,7 +604,7 @@ fun CollectButton() {
 
 **为什么不放在高层 / VM**：完全无共享需求，过度提升会增加代码冗余，违背「状态最小作用域」原则。
 
-### 2. 状态存在**更高层的 Composable 节点中**（跨子组件的组合状态）
+### 2. 状态存在更高层的 Composable 节点中（跨子组件的组合状态）
 
 状态需要被**当前高层 Composable 的多个子 Composable 共享**，生命周期和高层组件绑定，**无跨页面 / 导航的需求**。
 
@@ -604,7 +643,7 @@ fun UserNameInput(userName: String, onUserNameChange: (String) -> Unit) {
 
 避免多个子组件各自持有状态导致的**状态不一致**，高层统一管理，子组件可复用（比如其他页面也能调用`UserNameInput`，只需传不同的状态 / 回调）。
 
-### 3. 状态存在**ViewModel 中**（页面级 / 跨生命周期的业务状态）
+### 3. 状态存在ViewModel 中（页面级 / 跨生命周期的业务状态）
 
 满足以下任一条件即可，也是官方最推荐的**业务状态管理方式**：
 
