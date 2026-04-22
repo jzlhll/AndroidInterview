@@ -54,5 +54,17 @@ code review bot
 
   直接把问题丢给AI，让他列出疑似点，不断对话，让它查找问题可能的原因。
 
+## Skills
+
+skill-creator，其实不用装，直接让AI工具自带的对话帮你写即可
+
+Planning-with-files: 持久化markdown规划模式，会落地到本地文件
+
+superpower：完整能力包，全流程，偏重。
+
+code-review-expert：sanyuan0704， preflight（了解改动范围，git diff），solid 架构检查，可删除代码，安全扫描 ，代码质量，结构化输出。https://github.com/sanyuan0704/sanyuan-skills/tree/main/skills/code-review-expert
+
+code Simplifier：聚焦修改过的代码，重复逻辑，github /anthropics
+
 
 
