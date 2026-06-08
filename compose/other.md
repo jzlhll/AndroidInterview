@@ -1,5 +1,164 @@
 收集了一些好帖子。
 
+## 从传统 Android 到 Jetpack Compose：10 个对照让你一小时上手
+
+### 1. 布局属性：XML 标签→Modifier 链
+
+以前 `layout_margin`、`padding`、`gravity` 都是分散写在 XML 标签上的属性。Compose 把它们全部归到 `Modifier` 链上。
+
+```kotlin
+Text(
+    text="点击我",
+    modifier=Modifier
+        .padding(16.dp)          // layout_margin
+        .background(Color.White) // background
+        .clickable { }           // onClick
+)
+```
+
+一个直观的经验：你在 XML 里用过的属性，基本都能在 `Modifier.xxx()` 找到对应的函数。
+
+### 2. 布局容器：LinearLayout→Column/Row
+
+| 传统 View                  | Compose                    |
+| -------------------------- | -------------------------- |
+| `LinearLayout(vertical)`   | `Column { }`               |
+| `LinearLayout(horizontal)` | `Row { }`                  |
+| `FrameLayout`              | `Box { }`                  |
+| `RelativeLayout`           | `Box` + `Modifier.align()` |
+| `ConstraintLayout`         | `ConstraintLayout{}`       |
+| `RecyclerView`             | `LazyColumn`               |
+
+三点对齐、间隔设置、权重分配，都在构造函数参数里写，不用去 XML 调。
+
+RecyclerView 以前需要 Adapter + ViewHolder + DiffUtil 三个文件。LazyColumn 直接在布局里写：
+
+```kotlin
+LazyColumn {
+    items(records, key= { it.id }) { record->
+        RecordCard(record=record)
+    }
+}
+```
+
+数据变化自动重组，不需要 `notifyDataSetChanged`。key 参数相当于 DiffUtil 的作用。
+
+
+
+### 3. 状态更新：这才是 Compose 最核心的变化
+
+以前更新 UI 靠三步走：声明变量 → 修改变量 → 手动把变量塞回控件。
+
+```kotlin
+var count=0
+textView.text="$count"
+button.setOnClickListener {
+    count++
+    textView.text="$count"  // 手动刷新
+}
+```
+
+Compose 的思路：变量本身可观察，变了 UI 自动变。
+
+```kotlin
+var count by remember { mutableStateOf(0) }
+
+Text("$count")                         // 直接读
+Button(onClick= { count++ }) {        // 改了 UI 自己刷新
+    Text("增加")
+}
+```
+
+不需要 `notifyDataSetChanged`、`Handler.post`、`findViewById`。数据即 UI。
+
+
+
+### 4. ViewModel：用法更轻了
+
+职责没变（管理业务状态），但获取方式从 `ViewModelProvider` + `observe` 变成了：
+
+```kotlin
+@Composable
+fun MyScreen(
+    vm: MyViewModel=viewModel()   // 不用 ViewModelProvider
+) {
+    val data by vm.data.collectAsStateWithLifecycle()  // StateFlow→State
+    Text(text=data)
+}
+```
+
+`viewModel()` 自动创建或复用，`collectAsStateWithLifecycle()` 自动绑定生命周期。
+
+
+
+### 5. 数据观察：StateFlow 取代 LiveData
+
+在 Compose 项目里，优先用 `StateFlow` 而不是 `LiveData`。
+
+```
+LiveData.observe(this) { }
+→
+StateFlow.collectAsStateWithLifecycle()
+```
+
+效果一样，但 StateFlow 不依赖 Android 平台，Compose 跨平台项目里是标准做法。
+
+
+
+### 6. Composable 的"生命周期"
+
+传统 View 有 `onAttach→onMeasure→onLayout→onDraw→onDetach`。Compose 没有这些，它用三个副作用 API 管理：
+
+| 场景                      | Compose API                                |
+| ------------------------- | ------------------------------------------ |
+| 初始化（相当于 onCreate） | `LaunchedEffect(Unit) { loadData() }`      |
+| 清理（相当于 onDestroy）  | `DisposableEffect(Unit) { onDispose { } }` |
+| 每次重组调用              | `SideEffect { }`                           |
+
+重要的思维转换：Composable 函数会因重组被反复执行，所以不要把"只做一次的事"直接写在函数体里，要用 `LaunchedEffect` 包一层。
+
+
+
+### 7. 导航：不再用 Intent
+
+传统：`Intent` 跳转 Activity，`FragmentTransaction` 跳 Fragment。
+
+Compose：全用 `NavController.navigate("route")` 搞定。
+
+```
+navController.navigate("detail/$id")
+```
+
+路由式导航，参数拼在路径里，简洁直观。
+
+
+
+### 总结
+
+**页面**：Activity / Fragment → `@Composable` 函数
+
+**布局**：XML 文件 → `Column` / `Row` / `Box` + Modifier
+
+**属性**：layout_margin / gravity → `Modifier.padding()` / `Modifier.align()`
+
+**列表**：Adapter + RecyclerView → `LazyColumn { items(...) }`
+
+**数据观察**：LiveData.observe() → `StateFlow.collectAsStateWithLifecycle()`
+
+**导航**：Intent / FragmentTransaction → `NavController.navigate()`
+
+**主题**：styles.xml / colors.xml → `MaterialTheme` / `Color.kt`
+
+**状态更新**：findViewById + 手动赋值 → `mutableStateOf` 自动重组
+
+**异步 UI**：Handler.post → `LaunchedEffect` / State 变化
+
+**刷新**：notifyDataSetChanged → 不需要了，重组自动处理。
+
+这 10 组对照覆盖了日常开发 90% 的场景。
+
+
+
 ## Jetpack Compose从入门到精通：构建高效Android应用
 
 [Jetpack Compose从入门到精通：构建高效Android应用-CSDN博客](https://blog.csdn.net/weixin_36299472/article/details/149265798)
